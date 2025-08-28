@@ -1,8 +1,19 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box,
-  Container,
+  Card,
+  CardContent,
+  CardMedia,
+  Grid,
   Typography,
+  Button,
+  TextField,
+  IconButton,
+  Chip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
   Table,
   TableBody,
   TableCell,
@@ -10,1383 +21,1094 @@ import {
   TableHead,
   TableRow,
   Paper,
-  TextField,
-  Chip,
-  Button,
-  Grid,
-  Card,
-  CardContent,
-  CardMedia,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   Tabs,
   Tab,
-  IconButton,
-  Tooltip,
-  Badge,
-  LinearProgress,
-  InputAdornment,
   AppBar,
   Toolbar,
-  Avatar,
+  Container,
+  InputAdornment,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Alert,
+  Snackbar,
+  Badge,
+  Tooltip,
+  LinearProgress,
   Divider,
   List,
   ListItem,
   ListItemText,
-  ListItemIcon,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
+  ListItemAvatar,
+  Avatar,
+  Drawer,
+  FormControlLabel,
+  Switch,
+  Slider,
+  Stack,
+  Autocomplete,
+  SpeedDial,
+  SpeedDialAction,
+  SpeedDialIcon,
+  Fab,
+  Pagination,
+  Skeleton,
+  ToggleButton,
+  ToggleButtonGroup,
   Breadcrumbs,
-  Link
+  Link,
+  Menu,
+  ListItemIcon
 } from '@mui/material';
+
 import {
-  Search,
-  FilterList,
-  TrendingUp,
-  TrendingDown,
-  Remove,
-  Inventory,
-  LocalOffer,
-  CalendarToday,
-  Launch,
-  Notifications,
-  ShoppingCart,
-  Favorite,
-  Share,
-  ExpandMore,
-  Sort,
-  ViewModule,
-  ViewList,
-  Analytics,
-  TrendingFlat,
-  ArrowBack,
-  Home
+  Search as SearchIcon,
+  ShoppingCart as ShoppingCartIcon,
+  Inventory as InventoryIcon,
+  TrendingUp as TrendingUpIcon,
+  Add as AddIcon,
+  Remove as RemoveIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  FilterList as FilterListIcon,
+  Close as CloseIcon,
+  AttachMoney as AttachMoneyIcon,
+  Warning as WarningIcon,
+  CheckCircle as CheckCircleIcon,
+  LocalOffer as LocalOfferIcon,
+  BarChart as BarChartIcon,
+  Print as PrintIcon,
+  Download as DownloadIcon,
+  Upload as UploadIcon,
+  Settings as SettingsIcon,
+  Dashboard as DashboardIcon,
+  ViewList as ViewListIcon,
+  ViewModule as ViewModuleIcon,
+  MoreVert as MoreVertIcon,
+  NavigateNext as NavigateNextIcon,
+  Store as StoreIcon,
+  QrCodeScanner as QrCodeScannerIcon
 } from '@mui/icons-material';
 
-// 샘플 데이터
-const sampleCardSets = [
-  {
-    code: 'OP12',
-    name: 'Legacy of the Master',
-    releaseDate: '2025-08-22',
-    cardCount: 154,
-    pricePercentage: 5.81,
-    usdPrice: 0,
-    eurPrice: 0,
-    type: 'booster',
-    stock: 0,
-    trend: 'new',
-    description: '최신 부스터팩으로 새로운 전설의 마스터들이 등장합니다.'
-  },
-  {
-    code: 'OP11',
-    name: 'A Fist of Divine Speed',
-    releaseDate: '2025-06-06',
-    cardCount: 155,
-    pricePercentage: 33.33,
-    usdPrice: 4825.57,
-    eurPrice: 3334.70,
-    type: 'booster',
-    stock: 8,
-    trend: 'up',
-    description: '신속한 주먹으로 전장을 지배하는 강력한 캐릭터들의 등장'
-  },
-  {
-    code: 'EB02',
-    name: 'Anime 25th Collection',
-    releaseDate: '2025-05-09',
-    cardCount: 105,
-    pricePercentage: 44.76,
-    usdPrice: 6274.95,
-    eurPrice: 4061.59,
-    type: 'booster',
-    stock: 3,
-    trend: 'up',
-    description: '애니메이션 25주년을 기념하는 특별 컬렉션'
-  },
-  {
-    code: 'OP10',
-    name: 'Royal Blood',
-    releaseDate: '2025-03-21',
-    cardCount: 151,
-    pricePercentage: 62.91,
-    usdPrice: 1158.84,
-    eurPrice: 948.14,
-    type: 'booster',
-    stock: 15,
-    trend: 'stable',
-    description: '왕족의 피를 이어받은 강력한 전사들의 이야기'
-  },
-  {
-    code: 'ST21',
-    name: 'EX Gear 5',
-    releaseDate: '2025-03-14',
-    cardCount: 32,
-    pricePercentage: 28.13,
-    usdPrice: 72.37,
-    eurPrice: 77.27,
-    type: 'starter',
-    stock: 12,
-    trend: 'down',
-    description: 'EX 시리즈의 기어 5 스타터 덱'
-  },
-  {
-    code: 'ST13',
-    name: 'Ultra Deck: The Three Brothers',
-    releaseDate: '2024-04-19',
-    cardCount: 35,
-    pricePercentage: 80.00,
-    usdPrice: 137.85,
-    eurPrice: 112.58,
-    type: 'starter',
-    stock: 5,
-    trend: 'up',
-    description: '세 형제의 유대를 담은 울트라 덱'
-  }
-];
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ChartTooltip, Legend, ResponsiveContainer, Area, AreaChart } from 'recharts';
 
-const sampleIndividualCards = [
-  {
-    id: 'OP11-001',
-    name: 'Monkey D. Luffy (Gear 5)',
-    set: 'OP11',
-    rarity: 'SEC',
-    type: 'Leader',
-    color: 'Red',
-    cost: 0,
-    power: 5000,
-    usdPrice: 89.99,
-    eurPrice: 75.50,
-    stock: 2,
-    trend: 'up',
-    image: 'https://via.placeholder.com/200x280/FF6B6B/FFFFFF?text=Luffy',
-    description: '기어 5의 힘으로 각성한 루피의 최강 형태',
-    priceHistory: [75, 80, 85, 89.99]
-  },
-  {
-    id: 'OP10-062',
-    name: 'Roronoa Zoro',
-    set: 'OP10',
-    rarity: 'SR',
-    type: 'Character',
-    color: 'Green',
-    cost: 4,
-    power: 5000,
-    usdPrice: 24.99,
-    eurPrice: 19.99,
-    stock: 8,
-    trend: 'stable',
-    image: 'https://via.placeholder.com/200x280/4ECDC4/FFFFFF?text=Zoro',
-    description: '삼도류의 달인, 조로의 새로운 모습',
-    priceHistory: [20, 22, 25, 24.99]
-  },
-  {
-    id: 'EB02-003',
-    name: 'Portgas D. Ace',
-    set: 'EB02',
-    rarity: 'SR',
-    type: 'Character',
-    color: 'Red',
-    cost: 5,
-    power: 6000,
-    usdPrice: 45.00,
-    eurPrice: 38.50,
-    stock: 1,
-    trend: 'up',
-    image: 'https://via.placeholder.com/200x280/FF8E53/FFFFFF?text=Ace',
-    description: '불꽃의 힘을 가진 에이스의 특별한 카드',
-    priceHistory: [35, 38, 42, 45.00]
-  },
-  {
-    id: 'OP11-045',
-    name: 'Trafalgar Law',
-    set: 'OP11',
-    rarity: 'R',
-    type: 'Character',
-    color: 'Blue',
-    cost: 3,
-    power: 4000,
-    usdPrice: 8.99,
-    eurPrice: 7.50,
-    stock: 20,
-    trend: 'stable',
-    image: 'https://via.placeholder.com/200x280/45B7D1/FFFFFF?text=Law',
-    description: '오페오페 열매의 능력자 트라팔가 로',
-    priceHistory: [7, 8, 9, 8.99]
-  },
-  {
-    id: 'ST21-001',
-    name: 'Monkey D. Luffy (Gear 5)',
-    set: 'ST21',
-    rarity: 'L',
-    type: 'Leader',
-    color: 'Red',
-    cost: 0,
-    power: 5000,
-    usdPrice: 15.99,
-    eurPrice: 12.99,
-    stock: 7,
-    trend: 'down',
-    image: 'https://via.placeholder.com/200x280/96CEB4/FFFFFF?text=Luffy+L',
-    description: '스타터 덱의 리더 카드 버전',
-    priceHistory: [18, 17, 16, 15.99]
-  },
-  {
-    id: 'OP10-023',
-    name: 'Nami',
-    set: 'OP10',
-    rarity: 'C',
-    type: 'Character',
-    color: 'Blue',
-    cost: 1,
-    power: 1000,
-    usdPrice: 2.49,
-    eurPrice: 1.99,
-    stock: 35,
-    trend: 'stable',
-    image: 'https://via.placeholder.com/200x280/FFEAA7/333333?text=Nami',
-    description: '밀짚모자 일당의 항해사 나미',
-    priceHistory: [2, 2.2, 2.5, 2.49]
-  }
-];
+// API 설정 (실제 환경에서는 환경변수로 관리)
+const API_BASE_URL = 'http://localhost:8000/api';
 
-// 탭 패널 컴포넌트
-function TabPanel({ children, value, index, ...other }) {
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`tabpanel-${index}`}
-      aria-labelledby={`tab-${index}`}
-      {...other}
-    >
-      {value === index && <Box sx={{ py: 3 }}>{children}</Box>}
-    </div>
-  );
-}
+// ==================== 메인 앱 컴포넌트 ====================
+const TCGStoreManager = () => {
+  const [selectedTab, setSelectedTab] = useState(0);
+  const [cart, setCart] = useState([]);
+  const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
-// 메인 컴포넌트
-function StoreManagement() {
-  const [currentTab, setCurrentTab] = useState(0);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState('all');
-  const [filterRarity, setFilterRarity] = useState('all');
-  const [sortBy, setSortBy] = useState('releaseDate');
-  const [viewMode, setViewMode] = useState('grid');
-  const [selectedSet, setSelectedSet] = useState(null);
-  const [selectedCard, setSelectedCard] = useState(null);
-  const [breadcrumb, setBreadcrumb] = useState(['세트별 보기']);
-
-  // 필터링 및 정렬 로직
-  const filteredSets = useMemo(() => {
-    return sampleCardSets
-      .filter(set => {
-        const matchesSearch = set.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            set.code.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesType = filterType === 'all' || set.type === filterType;
-        return matchesSearch && matchesType;
-      })
-      .sort((a, b) => {
-        if (sortBy === 'releaseDate') {
-          return new Date(b.releaseDate) - new Date(a.releaseDate);
-        } else if (sortBy === 'price') {
-          return b.usdPrice - a.usdPrice;
-        } else if (sortBy === 'name') {
-          return a.name.localeCompare(b.name);
-        }
-        return 0;
-      });
-  }, [searchTerm, filterType, sortBy]);
-
-  const filteredCards = useMemo(() => {
-    const cardsToFilter = selectedSet 
-      ? sampleIndividualCards.filter(card => card.set === selectedSet.code)
-      : sampleIndividualCards;
-      
-    return cardsToFilter.filter(card => {
-      const matchesSearch = card.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           card.set.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesRarity = filterRarity === 'all' || card.rarity === filterRarity;
-      return matchesSearch && matchesRarity;
-    });
-  }, [searchTerm, filterRarity, selectedSet]);
-
-  // 핸들러 함수들
-  const handleSetSelect = (set) => {
-    setSelectedSet(set);
-    setSelectedCard(null);
-    setBreadcrumb(['세트별 보기', set.name]);
+  const handleTabChange = (event, newValue) => {
+    setSelectedTab(newValue);
   };
 
-  const handleCardSelect = (card) => {
-    setSelectedCard(card);
-    if (selectedSet) {
-      setBreadcrumb(['세트별 보기', selectedSet.name, card.name]);
-    } else {
-      setBreadcrumb(['전체 카드', card.name]);
-    }
-  };
-
-  const handleBackToSets = () => {
-    setSelectedSet(null);
-    setSelectedCard(null);
-    setBreadcrumb(['세트별 보기']);
-  };
-
-  const handleBackToSetCards = () => {
-    setSelectedCard(null);
-    setBreadcrumb(['세트별 보기', selectedSet.name]);
-  };
-
-  // 유틸리티 함수들
-  const getTrendIcon = (trend) => {
-    switch (trend) {
-      case 'up':
-        return <TrendingUp sx={{ color: 'success.main', fontSize: 20 }} />;
-      case 'down':
-        return <TrendingDown sx={{ color: 'error.main', fontSize: 20 }} />;
-      case 'new':
-        return <Chip label="NEW" size="small" color="primary" variant="filled" />;
-      default:
-        return <TrendingFlat sx={{ color: 'grey.500', fontSize: 20 }} />;
-    }
-  };
-
-  const getStockChip = (stock) => {
-    if (stock === 0) {
-      return <Chip label="품절" size="small" color="error" />;
-    } else if (stock <= 3) {
-      return <Chip label={`재고 ${stock}`} size="small" color="warning" />;
-    } else {
-      return <Chip label={`재고 ${stock}`} size="small" color="success" />;
-    }
-  };
-
-  const getRarityColor = (rarity) => {
-    const colors = {
-      'SEC': 'error',
-      'SR': 'warning', 
-      'R': 'info',
-      'C': 'default',
-      'L': 'primary'
-    };
-    return colors[rarity] || 'default';
-  };
-
-  const formatPrice = (price, currency = 'USD') => {
-    if (price === 0) return '-';
-    const symbol = currency === 'USD' ? '$' : '€';
-    return `${symbol}${price.toLocaleString()}`;
-  };
-
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('ko-KR');
+  const showNotification = (message, severity = 'info') => {
+    setNotification({ open: true, message, severity });
   };
 
   return (
-    <Box sx={{ flexGrow: 1, bgcolor: 'grey.50', minHeight: '100vh' }}>
-      {/* 앱바 */}
-      <AppBar position="static" elevation={2}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', bgcolor: 'background.default' }}>
+      {/* 헤더 */}
+      <AppBar position="sticky" color="primary" elevation={2}>
         <Toolbar>
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            TCG Card Database
+          <IconButton edge="start" color="inherit" onClick={() => setDrawerOpen(true)} sx={{ mr: 2 }}>
+            <StoreIcon />
+          </IconButton>
+          <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 'bold' }}>
+            TCG Store Manager
           </Typography>
-          <IconButton color="inherit">
-            <Notifications />
+          <Badge badgeContent={cart.length} color="error">
+            <IconButton color="inherit">
+              <ShoppingCartIcon />
+            </IconButton>
+          </Badge>
+          <IconButton color="inherit" sx={{ ml: 2 }}>
+            <SettingsIcon />
           </IconButton>
-          <IconButton color="inherit">
-            <ShoppingCart />
-          </IconButton>
-          <Avatar sx={{ ml: 2 }}>U</Avatar>
         </Toolbar>
+        <Tabs value={selectedTab} onChange={handleTabChange} textColor="inherit" indicatorColor="secondary" variant="scrollable">
+          <Tab label="대시보드" icon={<DashboardIcon />} iconPosition="start" />
+          <Tab label="카드 검색" icon={<SearchIcon />} iconPosition="start" />
+          <Tab label="재고 관리" icon={<InventoryIcon />} iconPosition="start" />
+          <Tab label="판매" icon={<ShoppingCartIcon />} iconPosition="start" />
+          <Tab label="가격 분석" icon={<TrendingUpIcon />} iconPosition="start" />
+        </Tabs>
       </AppBar>
 
-      <Container maxWidth="xl" sx={{ py: 4 }}>
-        {/* 헤더 섹션 */}
-        <Box sx={{ textAlign: 'center', mb: 4 }}>
-          <Typography variant="h3" component="h1" gutterBottom fontWeight="bold">
-            Card Price Database
-          </Typography>
-          <Typography variant="h6" color="text.secondary" gutterBottom>
-            카드 가격 검색 및 재고 확인 시스템
-          </Typography>
-        </Box>
-
-        {/* 검색 및 필터 섹션 */}
-        <Paper elevation={3} sx={{ p: 3, mb: 4, borderRadius: 2 }}>
-          <Grid container spacing={3} alignItems="center">
-            <Grid item xs={12} md={4}>
-              <TextField
-                fullWidth
-                variant="outlined"
-                placeholder="카드명, 세트 코드, 캐릭터 검색..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <Search color="action" />
-                    </InputAdornment>
-                  ),
-                }}
-                sx={{ bgcolor: 'white' }}
-              />
-            </Grid>
-            
-            <Grid item xs={6} md={2}>
-              <FormControl fullWidth>
-                <InputLabel>타입 필터</InputLabel>
-                <Select
-                  value={filterType}
-                  label="타입 필터"
-                  onChange={(e) => setFilterType(e.target.value)}
-                >
-                  <MenuItem value="all">전체</MenuItem>
-                  <MenuItem value="booster">부스터팩</MenuItem>
-                  <MenuItem value="starter">스타터덱</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-
-            <Grid item xs={6} md={2}>
-              <FormControl fullWidth>
-                <InputLabel>레어도</InputLabel>
-                <Select
-                  value={filterRarity}
-                  label="레어도"
-                  onChange={(e) => setFilterRarity(e.target.value)}
-                >
-                  <MenuItem value="all">전체</MenuItem>
-                  <MenuItem value="SEC">SEC</MenuItem>
-                  <MenuItem value="SR">SR</MenuItem>
-                  <MenuItem value="R">R</MenuItem>
-                  <MenuItem value="C">C</MenuItem>
-                  <MenuItem value="L">L</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-
-            <Grid item xs={6} md={2}>
-              <FormControl fullWidth>
-                <InputLabel>정렬</InputLabel>
-                <Select
-                  value={sortBy}
-                  label="정렬"
-                  onChange={(e) => setSortBy(e.target.value)}
-                >
-                  <MenuItem value="releaseDate">출시일순</MenuItem>
-                  <MenuItem value="price">가격순</MenuItem>
-                  <MenuItem value="name">이름순</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-
-            <Grid item xs={6} md={2}>
-              <Box display="flex" gap={1}>
-                <Button 
-                  variant="outlined" 
-                  startIcon={<LocalOffer />}
-                  size="small"
-                  fullWidth
-                >
-                  가격알림
-                </Button>
-                <Tooltip title="보기 모드 변경">
-                  <IconButton 
-                    onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-                  >
-                    {viewMode === 'grid' ? <ViewList /> : <ViewModule />}
-                  </IconButton>
-                </Tooltip>
-              </Box>
-            </Grid>
-          </Grid>
-        </Paper>
-
-        {/* 브레드크럼 네비게이션 */}
-        {(selectedSet || selectedCard) && (
-          <Box sx={{ mb: 3 }}>
-            <Breadcrumbs aria-label="breadcrumb">
-              <Link
-                component="button"
-                variant="body1"
-                onClick={handleBackToSets}
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  textDecoration: 'none',
-                  '&:hover': { textDecoration: 'underline' }
-                }}
-              >
-                <Home sx={{ mr: 0.5, fontSize: 20 }} />
-                세트별 보기
-              </Link>
-              {selectedSet && !selectedCard && (
-                <Typography color="text.primary" sx={{ display: 'flex', alignItems: 'center' }}>
-                  <Inventory sx={{ mr: 0.5, fontSize: 20 }} />
-                  {selectedSet.name}
-                </Typography>
-              )}
-              {selectedSet && selectedCard && (
-                <Link
-                  component="button"
-                  variant="body1"
-                  onClick={handleBackToSetCards}
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    textDecoration: 'none',
-                    '&:hover': { textDecoration: 'underline' }
-                  }}
-                >
-                  <Inventory sx={{ mr: 0.5, fontSize: 20 }} />
-                  {selectedSet.name}
-                </Link>
-              )}
-              {selectedCard && (
-                <Typography color="text.primary" sx={{ display: 'flex', alignItems: 'center' }}>
-                  <LocalOffer sx={{ mr: 0.5, fontSize: 20 }} />
-                  {selectedCard.name}
-                </Typography>
-              )}
-            </Breadcrumbs>
-          </Box>
-        )}
-
-        {/* 탭 네비게이션 */}
-        <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-          <Tabs 
-            value={currentTab} 
-            onChange={(e, newValue) => setCurrentTab(newValue)}
-            variant="fullWidth"
-            textColor="primary"
-            indicatorColor="primary"
-          >
-            <Tab 
-              label={
-                selectedCard ? selectedCard.name : 
-                selectedSet ? `${selectedSet.name} 카드` : 
-                "세트별 보기"
-              } 
-              icon={selectedCard ? <LocalOffer /> : selectedSet ? <Inventory /> : <ViewModule />} 
-              iconPosition="start"
-            />
-            <Tab 
-              label="전체 카드" 
-              icon={<Inventory />} 
-              iconPosition="start"
-            />
-            <Tab 
-              label="가격 동향" 
-              icon={<Analytics />} 
-              iconPosition="start"
-            />
-          </Tabs>
-        </Box>
-
-        {/* 세트별 보기 탭 */}
-        <TabPanel value={currentTab} index={0}>
-          {selectedCard ? (
-            // 개별 카드 상세 페이지
-            <Box>
-              <Paper elevation={2} sx={{ p: 4, mb: 3, borderRadius: 2 }}>
-                <Grid container spacing={4}>
-                  {/* 카드 이미지 */}
-                  <Grid item xs={12} md={4}>
-                    <Box sx={{ textAlign: 'center' }}>
-                      <Card elevation={4} sx={{ display: 'inline-block', borderRadius: 3 }}>
-                        <CardMedia
-                          component="img"
-                          sx={{ width: 300, height: 420 }}
-                          image={selectedCard.image}
-                          alt={selectedCard.name}
-                        />
-                      </Card>
-                      <Box sx={{ mt: 2, display: 'flex', gap: 1, justifyContent: 'center' }}>
-                        <Button variant="contained" startIcon={<ShoppingCart />}>
-                          장바구니 추가
-                        </Button>
-                        <Button variant="outlined" startIcon={<Favorite />}>
-                          즐겨찾기
-                        </Button>
-                      </Box>
-                    </Box>
-                  </Grid>
-
-                  {/* 카드 정보 */}
-                  <Grid item xs={12} md={8}>
-                    <Typography variant="h4" gutterBottom fontWeight="bold">
-                      {selectedCard.name}
-                    </Typography>
-                    <Typography variant="h6" color="text.secondary" gutterBottom>
-                      {selectedCard.id}
-                    </Typography>
-                    
-                    <Box display="flex" gap={1} mb={3} flexWrap="wrap">
-                      <Chip 
-                        label={selectedCard.rarity} 
-                        color={getRarityColor(selectedCard.rarity)} 
-                        size="medium"
-                      />
-                      <Chip label={selectedCard.type} color="info" variant="outlined" />
-                      <Chip label={selectedCard.color} color="primary" variant="outlined" />
-                      <Chip label={`코스트 ${selectedCard.cost}`} variant="outlined" />
-                      <Chip label={`파워 ${selectedCard.power?.toLocaleString()}`} variant="outlined" />
-                    </Box>
-
-                    {/* 가격 정보 */}
-                    <Paper elevation={1} sx={{ p: 3, mb: 3, bgcolor: 'grey.50' }}>
-                      <Typography variant="h6" gutterBottom>
-                        현재 시세
-                      </Typography>
-                      <Grid container spacing={2}>
-                        <Grid item xs={6}>
-                          <Box textAlign="center" sx={{ p: 2, bgcolor: 'white', borderRadius: 2 }}>
-                            <Typography variant="body2" color="text.secondary">
-                              USD 가격
-                            </Typography>
-                            <Typography variant="h4" color="primary" fontWeight="bold">
-                              {formatPrice(selectedCard.usdPrice)}
-                            </Typography>
-                            <Box display="flex" alignItems="center" justifyContent="center" mt={1}>
-                              {getTrendIcon(selectedCard.trend)}
-                              <Typography variant="body2" sx={{ ml: 1 }}>
-                                {selectedCard.trend === 'up' ? '+12.5%' : 
-                                 selectedCard.trend === 'down' ? '-8.2%' : '±0%'} (7일)
-                              </Typography>
-                            </Box>
-                          </Box>
-                        </Grid>
-                        <Grid item xs={6}>
-                          <Box textAlign="center" sx={{ p: 2, bgcolor: 'white', borderRadius: 2 }}>
-                            <Typography variant="body2" color="text.secondary">
-                              EUR 가격
-                            </Typography>
-                            <Typography variant="h4" color="primary" fontWeight="bold">
-                              {formatPrice(selectedCard.eurPrice, 'EUR')}
-                            </Typography>
-                            <Box display="flex" alignItems="center" justifyContent="center" mt={1}>
-                              {getTrendIcon(selectedCard.trend)}
-                              <Typography variant="body2" sx={{ ml: 1 }}>
-                                {selectedCard.trend === 'up' ? '+10.8%' : 
-                                 selectedCard.trend === 'down' ? '-7.1%' : '±0%'} (7일)
-                              </Typography>
-                            </Box>
-                          </Box>
-                        </Grid>
-                      </Grid>
-                      
-                      <Box display="flex" justifyContent="space-between" alignItems="center" mt={2}>
-                        {getStockChip(selectedCard.stock)}
-                        <Typography variant="body2" color="text.secondary">
-                          최종 업데이트: 2025년 8월 27일
-                        </Typography>
-                      </Box>
-                    </Paper>
-
-                    {/* 카드 설명 */}
-                    <Paper elevation={1} sx={{ p: 3 }}>
-                      <Typography variant="h6" gutterBottom>
-                        카드 효과
-                      </Typography>
-                      <Typography variant="body1" sx={{ lineHeight: 1.8 }}>
-                        {selectedCard.description}
-                      </Typography>
-                    </Paper>
-                  </Grid>
-                </Grid>
-              </Paper>
-            </Box>
-          ) : !selectedSet ? (
-            // 세트 목록 테이블
-            <TableContainer component={Paper} elevation={2} sx={{ borderRadius: 2 }}>
-              <Table stickyHeader>
-                <TableHead>
-                  <TableRow>
-                    <TableCell><strong>코드</strong></TableCell>
-                    <TableCell><strong>세트명</strong></TableCell>
-                    <TableCell align="center"><strong>출시일</strong></TableCell>
-                    <TableCell align="center"><strong>카드 수</strong></TableCell>
-                    <TableCell align="center"><strong>USD 가격</strong></TableCell>
-                    <TableCell align="center"><strong>EUR 가격</strong></TableCell>
-                    <TableCell align="center"><strong>재고</strong></TableCell>
-                    <TableCell align="center"><strong>동향</strong></TableCell>
-                    <TableCell align="center"><strong>액션</strong></TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {filteredSets.map((set) => (
-                    <TableRow 
-                      key={set.code} 
-                      hover
-                      sx={{ 
-                        '&:hover': { bgcolor: 'action.hover', cursor: 'pointer' },
-                      }}
-                      onClick={() => handleSetSelect(set)}
-                    >
-                      <TableCell>
-                        <Chip 
-                          label={set.code} 
-                          variant="outlined" 
-                          size="small"
-                          color={set.type === 'booster' ? 'primary' : 'secondary'}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Box>
-                          <Typography variant="body1" fontWeight="medium" gutterBottom>
-                            {set.name}
-                          </Typography>
-                          <LinearProgress 
-                            variant="determinate" 
-                            value={set.pricePercentage} 
-                            sx={{ 
-                              height: 6, 
-                              borderRadius: 3,
-                              bgcolor: 'grey.200'
-                            }}
-                            color={
-                              set.pricePercentage > 60 ? 'success' : 
-                              set.pricePercentage > 30 ? 'warning' : 'error'
-                            }
-                          />
-                          <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-                            {set.pricePercentage}% 가격 데이터 수집완료
-                          </Typography>
-                        </Box>
-                      </TableCell>
-                      <TableCell align="center">
-                        <Box display="flex" alignItems="center" justifyContent="center" gap={0.5}>
-                          <CalendarToday sx={{ fontSize: 16, color: 'action.active' }} />
-                          <Typography variant="body2">
-                            {formatDate(set.releaseDate)}
-                          </Typography>
-                        </Box>
-                      </TableCell>
-                      <TableCell align="center">
-                        <Badge badgeContent={set.cardCount} color="info" max={999}>
-                          <Box sx={{ width: 24, height: 24 }} />
-                        </Badge>
-                      </TableCell>
-                      <TableCell align="center">
-                        <Typography 
-                          variant="body2" 
-                          color={set.usdPrice > 0 ? 'text.primary' : 'text.secondary'}
-                          fontWeight="medium"
-                        >
-                          {formatPrice(set.usdPrice)}
-                        </Typography>
-                      </TableCell>
-                      <TableCell align="center">
-                        <Typography 
-                          variant="body2" 
-                          color={set.eurPrice > 0 ? 'text.primary' : 'text.secondary'}
-                          fontWeight="medium"
-                        >
-                          {formatPrice(set.eurPrice, 'EUR')}
-                        </Typography>
-                      </TableCell>
-                      <TableCell align="center">
-                        {getStockChip(set.stock)}
-                      </TableCell>
-                      <TableCell align="center">
-                        <Tooltip title={`가격 ${set.trend === 'up' ? '상승' : set.trend === 'down' ? '하락' : '안정'}`}>
-                          <Box display="flex" justifyContent="center">
-                            {getTrendIcon(set.trend)}
-                          </Box>
-                        </Tooltip>
-                      </TableCell>
-                      <TableCell align="center">
-                        <Box display="flex" gap={1} justifyContent="center">
-                          <Tooltip title="카드 목록 보기">
-                            <IconButton 
-                              size="small" 
-                              color="primary"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleSetSelect(set);
-                              }}
-                            >
-                              <Launch />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="위시리스트 추가">
-                            <IconButton 
-                              size="small" 
-                              color="secondary"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <Favorite />
-                            </IconButton>
-                          </Tooltip>
-                        </Box>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          ) : (
-            // 선택된 세트의 카드 목록
-            <Box>
-              <Paper elevation={2} sx={{ p: 3, mb: 3, borderRadius: 2 }}>
-                <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-                  <Box>
-                    <Typography variant="h4" gutterBottom>
-                      {selectedSet.name}
-                    </Typography>
-                    <Typography variant="body1" color="text.secondary" gutterBottom>
-                      {selectedSet.description}
-                    </Typography>
-                    <Box display="flex" gap={2} mt={2}>
-                      <Chip 
-                        icon={<CalendarToday />}
-                        label={`출시일: ${formatDate(selectedSet.releaseDate)}`} 
-                        variant="outlined" 
-                      />
-                      <Chip 
-                        icon={<Inventory />}
-                        label={`총 ${selectedSet.cardCount}장`} 
-                        color="primary" 
-                        variant="outlined" 
-                      />
-                      <Chip 
-                        label={selectedSet.type === 'booster' ? '부스터팩' : '스타터덱'} 
-                        color="secondary" 
-                      />
-                    </Box>
-                  </Box>
-                  <Button
-                    variant="outlined"
-                    startIcon={<ArrowBack />}
-                    onClick={handleBackToSets}
-                    size="large"
-                  >
-                    세트 목록으로
-                  </Button>
-                </Box>
-              </Paper>
-
-              {/* 세트 내 카드들을 그리드로 표시 */}
-              <Grid container spacing={3}>
-                {filteredCards.map((card) => (
-                  <Grid item xs={6} sm={4} md={3} lg={2} key={card.id}>
-                    <Card 
-                      elevation={3} 
-                      sx={{ 
-                        height: '100%',
-                        transition: 'all 0.3s',
-                        cursor: 'pointer',
-                        '&:hover': { 
-                          transform: 'translateY(-8px)', 
-                          boxShadow: 6 
-                        },
-                        borderRadius: 2
-                      }}
-                      onClick={() => handleCardSelect(card)}
-                    >
-                      <CardMedia
-                        sx={{
-                          height: 280,
-                          position: 'relative',
-                          bgcolor: 'grey.100'
-                        }}
-                        image={card.image}
-                        title={card.name}
-                      >
-                        <Box 
-                          sx={{ 
-                            position: 'absolute', 
-                            top: 8, 
-                            right: 8,
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: 1
-                          }}
-                        >
-                          {getTrendIcon(card.trend)}
-                          <IconButton 
-                            size="small" 
-                            sx={{ 
-                              bgcolor: 'rgba(255,255,255,0.8)', 
-                              '&:hover': { bgcolor: 'rgba(255,255,255,0.9)' } 
-                            }}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <Favorite fontSize="small" />
-                          </IconButton>
-                        </Box>
-                        <Box 
-                          sx={{ 
-                            position: 'absolute', 
-                            top: 8, 
-                            left: 8
-                          }}
-                        >
-                          <Chip 
-                            label={card.rarity} 
-                            size="small" 
-                            color={getRarityColor(card.rarity)}
-                            sx={{ fontWeight: 'bold' }}
-                          />
-                        </Box>
-                        <Box 
-                          sx={{ 
-                            position: 'absolute', 
-                            bottom: 8, 
-                            right: 8
-                          }}
-                        >
-                          {getStockChip(card.stock)}
-                        </Box>
-                      </CardMedia>
-                      
-                      <CardContent sx={{ p: 2 }}>
-                        <Typography variant="body2" component="h3" fontWeight="bold" noWrap>
-                          {card.name}
-                        </Typography>
-                        
-                        <Box display="flex" justifyContent="space-between" alignItems="center" mt={1}>
-                          <Typography variant="body2" color="primary" fontWeight="bold">
-                            {formatPrice(card.usdPrice)}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {card.id}
-                          </Typography>
-                        </Box>
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                ))}
-              </Grid>
-            </Box>
-          )}
-        </TabPanel>
-
-        {/* 전체 카드 탭 */}
-        <TabPanel value={currentTab} index={1}>
-          <Grid container spacing={3}>
-            {sampleIndividualCards.map((card) => (
-              <Grid item xs={12} sm={6} md={4} lg={3} key={card.id}>
-                <Card 
-                  elevation={3} 
-                  sx={{ 
-                    height: '100%',
-                    transition: 'all 0.3s',
-                    cursor: 'pointer',
-                    '&:hover': { 
-                      transform: 'translateY(-8px)', 
-                      boxShadow: 6 
-                    },
-                    borderRadius: 2
-                  }}
-                  onClick={() => handleCardSelect(card)}
-                >
-                  <CardMedia
-                    sx={{
-                      height: 220,
-                      position: 'relative',
-                      bgcolor: 'grey.100'
-                    }}
-                    image={card.image}
-                    title={card.name}
-                  >
-                    <Box 
-                      sx={{ 
-                        position: 'absolute', 
-                        top: 8, 
-                        right: 8,
-                        display: 'flex',
-                        gap: 1
-                      }}
-                    >
-                      {getTrendIcon(card.trend)}
-                      <IconButton 
-                        size="small" 
-                        sx={{ 
-                          bgcolor: 'rgba(255,255,255,0.8)', 
-                          '&:hover': { bgcolor: 'rgba(255,255,255,0.9)' } 
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <Favorite fontSize="small" />
-                      </IconButton>
-                    </Box>
-                    <Box 
-                      sx={{ 
-                        position: 'absolute', 
-                        top: 8, 
-                        left: 8
-                      }}
-                    >
-                      <Chip 
-                        label={card.rarity} 
-                        size="small" 
-                        color={getRarityColor(card.rarity)}
-                        sx={{ fontWeight: 'bold' }}
-                      />
-                    </Box>
-                  </CardMedia>
-                  
-                  <CardContent sx={{ p: 2 }}>
-                    <Typography variant="h6" component="h3" gutterBottom noWrap>
-                      {card.name}
-                    </Typography>
-                    
-                    <Box display="flex" gap={1} mb={2} flexWrap="wrap">
-                      <Chip label={card.set} size="small" variant="outlined" />
-                      <Chip label={card.type} size="small" color="info" variant="outlined" />
-                      <Chip label={card.color} size="small" color="primary" variant="outlined" />
-                    </Box>
-
-                    <Box sx={{ mb: 2 }}>
-                      <Typography variant="caption" color="text.secondary" gutterBottom>
-                        코스트: {card.cost} | 파워: {card.power?.toLocaleString()}
-                      </Typography>
-                    </Box>
-                    
-                    <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-                      <Typography variant="body2" color="text.secondary">USD</Typography>
-                      <Typography variant="h6" color="primary" fontWeight="bold">
-                        {formatPrice(card.usdPrice)}
-                      </Typography>
-                    </Box>
-                    
-                    <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-                      <Typography variant="body2" color="text.secondary">EUR</Typography>
-                      <Typography variant="body1" color="primary" fontWeight="bold">
-                        {formatPrice(card.eurPrice, 'EUR')}
-                      </Typography>
-                    </Box>
-
-                    <Divider sx={{ my: 1 }} />
-
-                    <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-                      {getStockChip(card.stock)}
-                      <Box display="flex" gap={0.5}>
-                        <Tooltip title="장바구니에 추가">
-                          <IconButton 
-                            size="small" 
-                            color="primary"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <ShoppingCart fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="공유">
-                          <IconButton 
-                            size="small"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <Share fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      </Box>
-                    </Box>
-                    
-                    <Button 
-                      variant="contained" 
-                      fullWidth 
-                      size="small"
-                      startIcon={<Launch />}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleCardSelect(card);
-                      }}
-                    >
-                      상세보기
-                    </Button>
-                  </CardContent>
-                </Card>
-              </Grid>
-            ))}
-          </Grid>
-        </TabPanel>
-
-        {/* 가격 동향 탭 */}
-        <TabPanel value={currentTab} index={2}>
-          <Grid container spacing={4}>
-            <Grid item xs={12}>
-              <Typography variant="h4" gutterBottom fontWeight="bold">
-                시장 가격 동향 분석
-              </Typography>
-              <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-                최근 30일간의 카드 가격 변동 추이와 시장 분석 리포트
-              </Typography>
-            </Grid>
-
-            <Grid item xs={12} md={4}>
-              <Card elevation={2} sx={{ p: 3, textAlign: 'center', borderRadius: 2 }}>
-                <Box display="flex" alignItems="center" justifyContent="center" mb={2}>
-                  <Avatar sx={{ bgcolor: 'success.main', width: 56, height: 56 }}>
-                    <TrendingUp />
-                  </Avatar>
-                </Box>
-                <Typography variant="h3" color="success.main" fontWeight="bold" gutterBottom>
-                  12
-                </Typography>
-                <Typography variant="h6" gutterBottom>
-                  상승 중인 카드
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  지난 주 대비 평균 +15% 상승
-                </Typography>
-                <Chip 
-                  label="+2.1% vs 어제" 
-                  size="small" 
-                  color="success" 
-                  sx={{ mt: 1 }}
-                />
-              </Card>
-            </Grid>
-            
-            <Grid item xs={12} md={4}>
-              <Card elevation={2} sx={{ p: 3, textAlign: 'center', borderRadius: 2 }}>
-                <Box display="flex" alignItems="center" justifyContent="center" mb={2}>
-                  <Avatar sx={{ bgcolor: 'error.main', width: 56, height: 56 }}>
-                    <TrendingDown />
-                  </Avatar>
-                </Box>
-                <Typography variant="h3" color="error.main" fontWeight="bold" gutterBottom>
-                  8
-                </Typography>
-                <Typography variant="h6" gutterBottom>
-                  하락 중인 카드
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  지난 주 대비 평균 -8% 하락
-                </Typography>
-                <Chip 
-                  label="-1.3% vs 어제" 
-                  size="small" 
-                  color="error" 
-                  sx={{ mt: 1 }}
-                />
-              </Card>
-            </Grid>
-            
-            <Grid item xs={12} md={4}>
-              <Card elevation={2} sx={{ p: 3, textAlign: 'center', borderRadius: 2 }}>
-                <Box display="flex" alignItems="center" justifyContent="center" mb={2}>
-                  <Avatar sx={{ bgcolor: 'info.main', width: 56, height: 56 }}>
-                    <TrendingFlat />
-                  </Avatar>
-                </Box>
-                <Typography variant="h3" color="info.main" fontWeight="bold" gutterBottom>
-                  25
-                </Typography>
-                <Typography variant="h6" gutterBottom>
-                  안정적인 카드
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  변동폭 ±3% 이내 유지
-                </Typography>
-                <Chip 
-                  label="±0.5% vs 어제" 
-                  size="small" 
-                  color="info" 
-                  sx={{ mt: 1 }}
-                />
-              </Card>
-            </Grid>
-
-            {/* 차트 섹션 */}
-            <Grid item xs={12}>
-              <Paper elevation={2} sx={{ p: 4, borderRadius: 2 }}>
-                <Typography variant="h5" gutterBottom>
-                  가격 변동 차트
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                  주요 카드들의 30일간 가격 변동 추이
-                </Typography>
-                <Box 
-                  sx={{ 
-                    height: 400, 
-                    bgcolor: 'grey.50', 
-                    borderRadius: 2,
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center',
-                    border: '2px dashed',
-                    borderColor: 'grey.300'
-                  }}
-                >
-                  <Box textAlign="center">
-                    <Analytics sx={{ fontSize: 64, color: 'grey.400', mb: 2 }} />
-                    <Typography variant="h6" color="text.secondary" gutterBottom>
-                      가격 차트 영역
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Chart.js, Recharts, 또는 D3.js를 사용하여<br />
-                      실시간 가격 차트를 구현할 수 있습니다
-                    </Typography>
-                  </Box>
-                </Box>
-              </Paper>
-            </Grid>
-
-            {/* 인기 카드 순위 */}
-            <Grid item xs={12} md={6}>
-              <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
-                <Typography variant="h6" gutterBottom>
-                  가격 상승률 TOP 5
-                </Typography>
-                <List>
-                  {[
-                    { name: 'Monkey D. Luffy (Gear 5)', change: '+15.2%', price: '$89.99' },
-                    { name: 'Portgas D. Ace', change: '+12.8%', price: '$45.00' },
-                    { name: 'Roronoa Zoro', change: '+8.5%', price: '$24.99' },
-                    { name: 'Trafalgar Law', change: '+6.2%', price: '$8.99' },
-                    { name: 'Nami', change: '+4.1%', price: '$2.49' }
-                  ].map((card, index) => (
-                    <ListItem key={index} divider>
-                      <ListItemIcon>
-                        <Avatar 
-                          sx={{ 
-                            width: 24, 
-                            height: 24, 
-                            bgcolor: 'success.main', 
-                            fontSize: 12 
-                          }}
-                        >
-                          {index + 1}
-                        </Avatar>
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={card.name}
-                        secondary={
-                          <Box display="flex" justifyContent="space-between" alignItems="center">
-                            <Chip label={card.change} size="small" color="success" />
-                            <Typography variant="body2" fontWeight="bold">
-                              {card.price}
-                            </Typography>
-                          </Box>
-                        }
-                      />
-                    </ListItem>
-                  ))}
-                </List>
-              </Paper>
-            </Grid>
-
-            <Grid item xs={12} md={6}>
-              <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
-                <Typography variant="h6" gutterBottom>
-                  가격 하락률 TOP 5
-                </Typography>
-                <List>
-                  {[
-                    { name: 'Monkey D. Luffy (ST21)', change: '-8.2%', price: '$15.99' },
-                    { name: 'Yamato', change: '-6.5%', price: '$4.53' },
-                    { name: 'Big Mom Pirates', change: '-4.8%', price: '$13.28' },
-                    { name: 'Animal Kingdom Pirates', change: '-3.2%', price: '$4.46' },
-                    { name: 'Straw Hat Crew', change: '-2.1%', price: '$8.17' }
-                  ].map((card, index) => (
-                    <ListItem key={index} divider>
-                      <ListItemIcon>
-                        <Avatar 
-                          sx={{ 
-                            width: 24, 
-                            height: 24, 
-                            bgcolor: 'error.main', 
-                            fontSize: 12 
-                          }}
-                        >
-                          {index + 1}
-                        </Avatar>
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={card.name}
-                        secondary={
-                          <Box display="flex" justifyContent="space-between" alignItems="center">
-                            <Chip label={card.change} size="small" color="error" />
-                            <Typography variant="body2" fontWeight="bold">
-                              {card.price}
-                            </Typography>
-                          </Box>
-                        }
-                      />
-                    </ListItem>
-                  ))}
-                </List>
-              </Paper>
-            </Grid>
-
-            {/* 시장 분석 아코디언 */}
-            <Grid item xs={12}>
-              <Typography variant="h5" gutterBottom sx={{ mt: 2 }}>
-                상세 시장 분석
-              </Typography>
-              
-              <Accordion defaultExpanded>
-                <AccordionSummary expandIcon={<ExpandMore />}>
-                  <Typography variant="h6">주간 시장 리포트</Typography>
-                </AccordionSummary>
-                <AccordionDetails>
-                  <Typography paragraph>
-                    이번 주 TCG 카드 시장은 전반적으로 상승세를 보였습니다. 
-                    특히 원피스 TCG의 새로운 부스터팩 'Legacy of the Master' 출시 발표로 
-                    관련 카드들의 가격이 크게 상승했습니다.
-                  </Typography>
-                  <Typography paragraph>
-                    SEC(Secret) 레어도 카드들이 평균 12% 상승했으며, 
-                    특히 루피 관련 카드들이 높은 인기를 보이고 있습니다.
-                  </Typography>
-                </AccordionDetails>
-              </Accordion>
-
-              <Accordion>
-                <AccordionSummary expandIcon={<ExpandMore />}>
-                  <Typography variant="h6">투자 추천 카드</Typography>
-                </AccordionSummary>
-                <AccordionDetails>
-                  <Typography paragraph>
-                    현재 시점에서 투자 가치가 높은 카드들을 분석했습니다:
-                  </Typography>
-                  <Box component="ul" sx={{ pl: 2 }}>
-                    <Typography component="li" paragraph>
-                      <strong>단기 투자:</strong> 새로 출시될 세트의 프리뷰 카드들
-                    </Typography>
-                    <Typography component="li" paragraph>
-                      <strong>중기 투자:</strong> 애니메이션 연동 이벤트 관련 카드들
-                    </Typography>
-                    <Typography component="li" paragraph>
-                      <strong>장기 투자:</strong> 초기 세트 SEC 레어 카드들
-                    </Typography>
-                  </Box>
-                </AccordionDetails>
-              </Accordion>
-
-              <Accordion>
-                <AccordionSummary expandIcon={<ExpandMore />}>
-                  <Typography variant="h6">시장 리스크 분석</Typography>
-                </AccordionSummary>
-                <AccordionDetails>
-                  <Typography paragraph>
-                    카드 시장 투자 시 고려해야 할 리스크 요인들:
-                  </Typography>
-                  <Box component="ul" sx={{ pl: 2 }}>
-                    <Typography component="li" paragraph>
-                      재인쇄(reprint) 발표로 인한 급격한 가격 하락 위험
-                    </Typography>
-                    <Typography component="li" paragraph>
-                      메타게임 변화에 따른 카드 가치 변동
-                    </Typography>
-                    <Typography component="li" paragraph>
-                      시장 과열로 인한 버블 현상 가능성
-                    </Typography>
-                  </Box>
-                </AccordionDetails>
-              </Accordion>
-            </Grid>
-          </Grid>
-        </TabPanel>
+      {/* 메인 컨텐츠 */}
+      <Container maxWidth="xl" sx={{ flexGrow: 1, py: 3 }}>
+        {selectedTab === 0 && <DashboardComponent showNotification={showNotification} />}
+        {selectedTab === 1 && <CardSearchComponent cart={cart} setCart={setCart} showNotification={showNotification} />}
+        {selectedTab === 2 && <InventoryManagement showNotification={showNotification} />}
+        {selectedTab === 3 && <SalesComponent cart={cart} setCart={setCart} showNotification={showNotification} />}
+        {selectedTab === 4 && <PriceAnalysis />}
       </Container>
+
+      {/* 알림 스낵바 */}
+      <Snackbar
+        open={notification.open}
+        autoHideDuration={4000}
+        onClose={() => setNotification({ ...notification, open: false })}
+      >
+        <Alert severity={notification.severity} onClose={() => setNotification({ ...notification, open: false })}>
+          {notification.message}
+        </Alert>
+      </Snackbar>
+
+      {/* 사이드 메뉴 */}
+      <Drawer anchor="left" open={drawerOpen} onClose={() => setDrawerOpen(false)}>
+        <SideMenu onClose={() => setDrawerOpen(false)} />
+      </Drawer>
     </Box>
   );
-}
+};
 
-export default StoreManagement;
+// ==================== 대시보드 컴포넌트 ====================
+const DashboardComponent = ({ showNotification }) => {
+  const [stats, setStats] = useState({
+    totalCards: 0,
+    totalValue: 0,
+    lowStock: 0,
+    todaySales: 0
+  });
+
+  return (
+    <Box>
+      <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold', mb: 3 }}>
+        대시보드
+      </Typography>
+      
+      <Grid container spacing={3}>
+        {/* 통계 카드들 */}
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ bgcolor: 'primary.main', color: 'white' }}>
+            <CardContent>
+              <Typography variant="h6">총 카드 종류</Typography>
+              <Typography variant="h3" sx={{ mt: 2, fontWeight: 'bold' }}>
+                {stats.totalCards.toLocaleString()}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ bgcolor: 'success.main', color: 'white' }}>
+            <CardContent>
+              <Typography variant="h6">총 재고 가치</Typography>
+              <Typography variant="h3" sx={{ mt: 2, fontWeight: 'bold' }}>
+                ₩{(stats.totalValue / 10000).toFixed(0)}만
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ bgcolor: 'warning.main', color: 'white' }}>
+            <CardContent>
+              <Typography variant="h6">재고 부족</Typography>
+              <Typography variant="h3" sx={{ mt: 2, fontWeight: 'bold' }}>
+                {stats.lowStock}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ bgcolor: 'info.main', color: 'white' }}>
+            <CardContent>
+              <Typography variant="h6">오늘 매출</Typography>
+              <Typography variant="h3" sx={{ mt: 2, fontWeight: 'bold' }}>
+                ₩{(stats.todaySales / 10000).toFixed(0)}만
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* 차트 영역 */}
+        <Grid item xs={12} md={8}>
+          <Paper sx={{ p: 3 }}>
+            <Typography variant="h6" gutterBottom>매출 추이</Typography>
+            <ResponsiveContainer width="100%" height={300}>
+              <AreaChart data={generateSampleData()}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" />
+                <YAxis />
+                <ChartTooltip />
+                <Area type="monotone" dataKey="sales" stroke="#1976d2" fill="#1976d2" fillOpacity={0.6} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </Paper>
+        </Grid>
+
+        {/* 베스트셀러 */}
+        <Grid item xs={12} md={4}>
+          <Paper sx={{ p: 3, height: '100%' }}>
+            <Typography variant="h6" gutterBottom>베스트셀러 TOP 5</Typography>
+            <List>
+              {[1, 2, 3, 4, 5].map((item) => (
+                <ListItem key={item} divider>
+                  <ListItemAvatar>
+                    <Avatar sx={{ bgcolor: 'primary.main' }}>{item}</Avatar>
+                  </ListItemAvatar>
+                  <ListItemText 
+                    primary={`샘플 카드 ${item}`}
+                    secondary={`판매: ${100 - item * 10}장`}
+                  />
+                </ListItem>
+              ))}
+            </List>
+          </Paper>
+        </Grid>
+      </Grid>
+    </Box>
+  );
+};
+
+// ==================== 카드 검색 컴포넌트 ====================
+const CardSearchComponent = ({ cart, setCart, showNotification }) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filters, setFilters] = useState({
+    game: 'all',
+    set: 'all',
+    rarity: 'all',
+    inStock: false,
+    priceMin: 0,
+    priceMax: 1000000
+  });
+  const [cards, setCards] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [viewMode, setViewMode] = useState('grid');
+  const [selectedCard, setSelectedCard] = useState(null);
+  const [detailDialog, setDetailDialog] = useState(false);
+
+  // 샘플 데이터
+  useEffect(() => {
+    setCards(generateSampleCards());
+  }, []);
+
+  const filteredCards = useMemo(() => {
+    return cards.filter(card => {
+      if (searchTerm && !card.name.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+      if (filters.game !== 'all' && card.game !== filters.game) return false;
+      if (filters.inStock && card.stock === 0) return false;
+      if (card.price < filters.priceMin || card.price > filters.priceMax) return false;
+      return true;
+    });
+  }, [cards, searchTerm, filters]);
+
+  const addToCart = (card) => {
+    setCart([...cart, card]);
+    showNotification(`${card.name}을(를) 장바구니에 추가했습니다`, 'success');
+  };
+
+  return (
+    <Box>
+      {/* 검색 헤더 */}
+      <Paper sx={{ p: 2, mb: 3 }}>
+        <Stack direction="row" spacing={2} alignItems="center">
+          <TextField
+            fullWidth
+            variant="outlined"
+            placeholder="카드 이름, 번호로 검색..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon />
+                </InputAdornment>
+              ),
+            }}
+          />
+          <FormControl sx={{ minWidth: 120 }}>
+            <InputLabel>게임</InputLabel>
+            <Select
+              value={filters.game}
+              label="게임"
+              onChange={(e) => setFilters({ ...filters, game: e.target.value })}
+            >
+              <MenuItem value="all">전체</MenuItem>
+              <MenuItem value="pokemon">포켓몬</MenuItem>
+              <MenuItem value="onepiece">원피스</MenuItem>
+              <MenuItem value="digimon">디지몬</MenuItem>
+            </Select>
+          </FormControl>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={filters.inStock}
+                onChange={(e) => setFilters({ ...filters, inStock: e.target.checked })}
+              />
+            }
+            label="재고있음"
+          />
+          <ToggleButtonGroup
+            value={viewMode}
+            exclusive
+            onChange={(e, newMode) => newMode && setViewMode(newMode)}
+          >
+            <ToggleButton value="grid">
+              <ViewModuleIcon />
+            </ToggleButton>
+            <ToggleButton value="list">
+              <ViewListIcon />
+            </ToggleButton>
+          </ToggleButtonGroup>
+        </Stack>
+      </Paper>
+
+      {/* 카드 목록 */}
+      {loading ? (
+        <Grid container spacing={2}>
+          {[1, 2, 3, 4].map((i) => (
+            <Grid item xs={12} sm={6} md={3} key={i}>
+              <Skeleton variant="rectangular" height={300} />
+            </Grid>
+          ))}
+        </Grid>
+      ) : viewMode === 'grid' ? (
+        <Grid container spacing={2}>
+          {filteredCards.map((card) => (
+            <Grid item xs={12} sm={6} md={3} lg={2} key={card.id}>
+              <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <CardMedia
+                  component="img"
+                  height="200"
+                  image={card.image}
+                  alt={card.name}
+                  sx={{ cursor: 'pointer' }}
+                  onClick={() => {
+                    setSelectedCard(card);
+                    setDetailDialog(true);
+                  }}
+                />
+                <CardContent sx={{ flexGrow: 1 }}>
+                  <Typography variant="subtitle2" noWrap>
+                    {card.name}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {card.cardNumber}
+                  </Typography>
+                  <Box sx={{ mt: 1 }}>
+                    <Chip
+                      label={card.rarity}
+                      size="small"
+                      color={card.rarity === 'SR' ? 'warning' : 'default'}
+                      sx={{ mr: 0.5 }}
+                    />
+                    {card.stock > 0 ? (
+                      <Chip label={`재고: ${card.stock}`} size="small" color="success" />
+                    ) : (
+                      <Chip label="품절" size="small" color="error" />
+                    )}
+                  </Box>
+                  <Typography variant="h6" sx={{ mt: 1, fontWeight: 'bold' }}>
+                    ₩{card.price.toLocaleString()}
+                  </Typography>
+                </CardContent>
+                <Box sx={{ p: 1 }}>
+                  <Button
+                    fullWidth
+                    variant="contained"
+                    size="small"
+                    disabled={card.stock === 0}
+                    onClick={() => addToCart(card)}
+                  >
+                    장바구니 추가
+                  </Button>
+                </Box>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+      ) : (
+        <TableContainer component={Paper}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>이미지</TableCell>
+                <TableCell>카드명</TableCell>
+                <TableCell>번호</TableCell>
+                <TableCell>레어도</TableCell>
+                <TableCell align="right">재고</TableCell>
+                <TableCell align="right">가격</TableCell>
+                <TableCell align="center">작업</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {filteredCards.map((card) => (
+                <TableRow key={card.id} hover>
+                  <TableCell>
+                    <Avatar src={card.image} variant="rounded" />
+                  </TableCell>
+                  <TableCell>{card.name}</TableCell>
+                  <TableCell>{card.cardNumber}</TableCell>
+                  <TableCell>
+                    <Chip label={card.rarity} size="small" />
+                  </TableCell>
+                  <TableCell align="right">
+                    {card.stock > 0 ? (
+                      <Chip label={card.stock} size="small" color="success" />
+                    ) : (
+                      <Chip label="품절" size="small" color="error" />
+                    )}
+                  </TableCell>
+                  <TableCell align="right">₩{card.price.toLocaleString()}</TableCell>
+                  <TableCell align="center">
+                    <Button
+                      size="small"
+                      variant="contained"
+                      disabled={card.stock === 0}
+                      onClick={() => addToCart(card)}
+                    >
+                      추가
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
+
+      {/* 카드 상세 다이얼로그 */}
+      {selectedCard && (
+        <CardDetailDialog
+          card={selectedCard}
+          open={detailDialog}
+          onClose={() => setDetailDialog(false)}
+          onAddToCart={addToCart}
+        />
+      )}
+    </Box>
+  );
+};
+
+// ==================== 재고 관리 컴포넌트 ====================
+const InventoryManagement = ({ showNotification }) => {
+  const [inventoryItems, setInventoryItems] = useState([]);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [adjustDialog, setAdjustDialog] = useState(false);
+  const [adjustAmount, setAdjustAmount] = useState(0);
+  const [adjustReason, setAdjustReason] = useState('');
+
+  useEffect(() => {
+    setInventoryItems(generateSampleInventory());
+  }, []);
+
+  const handleAdjustStock = () => {
+    // API 호출
+    showNotification(`재고가 조정되었습니다: ${selectedItem.name} ${adjustAmount > 0 ? '+' : ''}${adjustAmount}`, 'success');
+    setAdjustDialog(false);
+    setAdjustAmount(0);
+    setAdjustReason('');
+  };
+
+  return (
+    <Box>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
+        <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
+          재고 관리
+        </Typography>
+        <Stack direction="row" spacing={2}>
+          <Button variant="contained" startIcon={<UploadIcon />}>
+            엑셀 업로드
+          </Button>
+          <Button variant="outlined" startIcon={<DownloadIcon />}>
+            엑셀 다운로드
+          </Button>
+          <Button variant="contained" color="success" startIcon={<QrCodeScannerIcon />}>
+            바코드 스캔
+          </Button>
+        </Stack>
+      </Box>
+
+      {/* 재고 알림 */}
+      <Alert severity="warning" sx={{ mb: 2 }}>
+        <Typography variant="subtitle2">
+          재고 부족 경고: 5개 상품이 최소 재고 수준 이하입니다
+        </Typography>
+      </Alert>
+
+      <TableContainer component={Paper}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>카드 번호</TableCell>
+              <TableCell>카드명</TableCell>
+              <TableCell>레어도</TableCell>
+              <TableCell align="right">현재 재고</TableCell>
+              <TableCell align="right">예약</TableCell>
+              <TableCell align="right">가용 재고</TableCell>
+              <TableCell align="right">최소 재고</TableCell>
+              <TableCell>위치</TableCell>
+              <TableCell align="center">작업</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {inventoryItems.map((item) => (
+              <TableRow 
+                key={item.id}
+                sx={{ 
+                  bgcolor: item.currentStock <= item.minStock ? 'error.light' : 'inherit',
+                  '&:hover': { bgcolor: 'action.hover' }
+                }}
+              >
+                <TableCell>{item.cardNumber}</TableCell>
+                <TableCell>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    {item.name}
+                    {item.isNew && <Chip label="NEW" size="small" color="primary" />}
+                  </Box>
+                </TableCell>
+                <TableCell>
+                  <Chip label={item.rarity} size="small" />
+                </TableCell>
+                <TableCell align="right">
+                  <Typography 
+                    color={item.currentStock <= item.minStock ? 'error' : 'inherit'}
+                    fontWeight={item.currentStock <= item.minStock ? 'bold' : 'normal'}
+                  >
+                    {item.currentStock}
+                  </Typography>
+                </TableCell>
+                <TableCell align="right">{item.reserved}</TableCell>
+                <TableCell align="right">
+                  <Typography fontWeight="bold">
+                    {item.currentStock - item.reserved}
+                  </Typography>
+                </TableCell>
+                <TableCell align="right">{item.minStock}</TableCell>
+                <TableCell>{item.location}</TableCell>
+                <TableCell align="center">
+                  <Stack direction="row" spacing={1}>
+                    <Tooltip title="재고 조정">
+                      <IconButton 
+                        size="small"
+                        onClick={() => {
+                          setSelectedItem(item);
+                          setAdjustDialog(true);
+                        }}
+                      >
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="이동">
+                      <IconButton size="small">
+                        <InventoryIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </Stack>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      {/* 재고 조정 다이얼로그 */}
+      <Dialog open={adjustDialog} onClose={() => setAdjustDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>재고 조정</DialogTitle>
+        <DialogContent>
+          {selectedItem && (
+            <Box>
+              <Typography variant="subtitle1" gutterBottom>
+                {selectedItem.name} ({selectedItem.cardNumber})
+              </Typography>
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                현재 재고: {selectedItem.currentStock}
+              </Typography>
+              <TextField
+                fullWidth
+                type="number"
+                label="조정 수량"
+                value={adjustAmount}
+                onChange={(e) => setAdjustAmount(parseInt(e.target.value))}
+                helperText="양수는 입고, 음수는 출고"
+                sx={{ mt: 2, mb: 2 }}
+              />
+              <TextField
+                fullWidth
+                multiline
+                rows={3}
+                label="조정 사유"
+                value={adjustReason}
+                onChange={(e) => setAdjustReason(e.target.value)}
+              />
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAdjustDialog(false)}>취소</Button>
+          <Button variant="contained" onClick={handleAdjustStock}>확인</Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+};
+
+// ==================== 판매 컴포넌트 ====================
+const SalesComponent = ({ cart, setCart, showNotification }) => {
+  const [customerInfo, setCustomerInfo] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('cash');
+
+  const totalAmount = cart.reduce((sum, item) => sum + item.price * (item.quantity || 1), 0);
+
+  const processSale = () => {
+    if (cart.length === 0) {
+      showNotification('장바구니가 비어있습니다', 'warning');
+      return;
+    }
+    // API 호출
+    showNotification('판매가 처리되었습니다', 'success');
+    setCart([]);
+    setCustomerInfo('');
+  };
+
+  return (
+    <Box>
+      <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold' }}>
+        판매
+      </Typography>
+
+      <Grid container spacing={3}>
+        <Grid item xs={12} md={8}>
+          <Paper sx={{ p: 3 }}>
+            <Typography variant="h6" gutterBottom>
+              장바구니
+            </Typography>
+            {cart.length === 0 ? (
+              <Alert severity="info">장바구니가 비어있습니다</Alert>
+            ) : (
+              <TableContainer>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>카드명</TableCell>
+                      <TableCell>번호</TableCell>
+                      <TableCell align="right">단가</TableCell>
+                      <TableCell align="center">수량</TableCell>
+                      <TableCell align="right">소계</TableCell>
+                      <TableCell align="center">삭제</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {cart.map((item, index) => (
+                      <TableRow key={index}>
+                        <TableCell>{item.name}</TableCell>
+                        <TableCell>{item.cardNumber}</TableCell>
+                        <TableCell align="right">₩{item.price.toLocaleString()}</TableCell>
+                        <TableCell align="center">
+                          <TextField
+                            type="number"
+                            size="small"
+                            value={item.quantity || 1}
+                            onChange={(e) => {
+                              const newCart = [...cart];
+                              newCart[index].quantity = parseInt(e.target.value) || 1;
+                              setCart(newCart);
+                            }}
+                            sx={{ width: 80 }}
+                          />
+                        </TableCell>
+                        <TableCell align="right">
+                          ₩{(item.price * (item.quantity || 1)).toLocaleString()}
+                        </TableCell>
+                        <TableCell align="center">
+                          <IconButton
+                            size="small"
+                            onClick={() => {
+                              setCart(cart.filter((_, i) => i !== index));
+                            }}
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+          </Paper>
+        </Grid>
+
+        <Grid item xs={12} md={4}>
+          <Paper sx={{ p: 3 }}>
+            <Typography variant="h6" gutterBottom>
+              결제 정보
+            </Typography>
+            <TextField
+              fullWidth
+              label="고객 정보"
+              value={customerInfo}
+              onChange={(e) => setCustomerInfo(e.target.value)}
+              sx={{ mb: 2 }}
+            />
+            <FormControl fullWidth sx={{ mb: 3 }}>
+              <InputLabel>결제 방법</InputLabel>
+              <Select
+                value={paymentMethod}
+                label="결제 방법"
+                onChange={(e) => setPaymentMethod(e.target.value)}
+              >
+                <MenuItem value="cash">현금</MenuItem>
+                <MenuItem value="card">카드</MenuItem>
+                <MenuItem value="transfer">계좌이체</MenuItem>
+              </Select>
+            </FormControl>
+            
+            <Divider sx={{ my: 2 }} />
+            
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="body2" color="text.secondary">
+                상품 수: {cart.length}개
+              </Typography>
+              <Typography variant="h5" sx={{ mt: 1, fontWeight: 'bold' }}>
+                총액: ₩{totalAmount.toLocaleString()}
+              </Typography>
+            </Box>
+            
+            <Button
+              fullWidth
+              variant="contained"
+              size="large"
+              onClick={processSale}
+              disabled={cart.length === 0}
+            >
+              결제 처리
+            </Button>
+          </Paper>
+        </Grid>
+      </Grid>
+    </Box>
+  );
+};
+
+// ==================== 가격 분석 컴포넌트 ====================
+const PriceAnalysis = () => {
+  const [selectedCard, setSelectedCard] = useState(null);
+  const [priceHistory, setPriceHistory] = useState([]);
+
+  useEffect(() => {
+    setPriceHistory(generatePriceHistory());
+  }, []);
+
+  return (
+    <Box>
+      <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold' }}>
+        가격 분석
+      </Typography>
+
+      <Grid container spacing={3}>
+        <Grid item xs={12}>
+          <Paper sx={{ p: 3 }}>
+            <Typography variant="h6" gutterBottom>
+              가격 추이 그래프
+            </Typography>
+            <ResponsiveContainer width="100%" height={400}>
+              <LineChart data={priceHistory}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" />
+                <YAxis />
+                <ChartTooltip />
+                <Legend />
+                <Line type="monotone" dataKey="avgPrice" stroke="#8884d8" name="평균가" />
+                <Line type="monotone" dataKey="minPrice" stroke="#82ca9d" name="최저가" />
+                <Line type="monotone" dataKey="maxPrice" stroke="#ffc658" name="최고가" />
+              </LineChart>
+            </ResponsiveContainer>
+          </Paper>
+        </Grid>
+
+        <Grid item xs={12} md={6}>
+          <Paper sx={{ p: 3 }}>
+            <Typography variant="h6" gutterBottom>
+              가격 급등 카드
+            </Typography>
+            <List>
+              {[
+                { name: '피카츄 VMAX', change: '+25%', price: '₩150,000' },
+                { name: '루피 리더 패러렐', change: '+18%', price: '₩280,000' },
+                { name: '뮤츠 GX', change: '+15%', price: '₩95,000' },
+              ].map((item, index) => (
+                <ListItem key={index}>
+                  <ListItemText
+                    primary={item.name}
+                    secondary={`현재가: ${item.price}`}
+                  />
+                  <Chip 
+                    label={item.change} 
+                    color="success" 
+                    size="small"
+                  />
+                </ListItem>
+              ))}
+            </List>
+          </Paper>
+        </Grid>
+
+        <Grid item xs={12} md={6}>
+          <Paper sx={{ p: 3 }}>
+            <Typography variant="h6" gutterBottom>
+              가격 급락 카드
+            </Typography>
+            <List>
+              {[
+                { name: '이상해씨', change: '-12%', price: '₩8,000' },
+                { name: '조로 SR', change: '-8%', price: '₩45,000' },
+                { name: '파이리', change: '-5%', price: '₩12,000' },
+              ].map((item, index) => (
+                <ListItem key={index}>
+                  <ListItemText
+                    primary={item.name}
+                    secondary={`현재가: ${item.price}`}
+                  />
+                  <Chip 
+                    label={item.change} 
+                    color="error" 
+                    size="small"
+                  />
+                </ListItem>
+              ))}
+            </List>
+          </Paper>
+        </Grid>
+      </Grid>
+    </Box>
+  );
+};
+
+// ==================== 카드 상세 다이얼로그 컴포넌트 ====================
+const CardDetailDialog = ({ card, open, onClose, onAddToCart }) => {
+  const [tabValue, setTabValue] = useState(0);
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+      <DialogTitle>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="h6">{card.name}</Typography>
+          <IconButton onClick={onClose}>
+            <CloseIcon />
+          </IconButton>
+        </Box>
+      </DialogTitle>
+      <DialogContent>
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={5}>
+            <Box sx={{ textAlign: 'center' }}>
+              <img 
+                src={card.image} 
+                alt={card.name} 
+                style={{ width: '100%', maxWidth: 300, borderRadius: 8 }}
+              />
+            </Box>
+          </Grid>
+          <Grid item xs={12} md={7}>
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="subtitle2" color="text.secondary">
+                카드 번호
+              </Typography>
+              <Typography variant="h6">{card.cardNumber}</Typography>
+            </Box>
+            
+            <Box sx={{ mb: 2 }}>
+              <Chip label={card.game} sx={{ mr: 1 }} />
+              <Chip label={card.rarity} color="primary" sx={{ mr: 1 }} />
+              {card.isFoil && <Chip label="포일" color="secondary" />}
+            </Box>
+
+            <Tabs value={tabValue} onChange={(e, v) => setTabValue(v)}>
+              <Tab label="가격 정보" />
+              <Tab label="재고 정보" />
+              <Tab label="가격 추이" />
+            </Tabs>
+
+            <Box sx={{ mt: 2 }}>
+              {tabValue === 0 && (
+                <Box>
+                  <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 2 }}>
+                    ₩{card.price.toLocaleString()}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    시장 평균가: ₩{(card.price * 1.1).toLocaleString()}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    온라인 최저가: ₩{(card.price * 0.9).toLocaleString()}
+                  </Typography>
+                </Box>
+              )}
+              {tabValue === 1 && (
+                <Box>
+                  <Typography variant="body1">
+                    현재 재고: {card.stock}장
+                  </Typography>
+                  <Typography variant="body1">
+                    예약: 0장
+                  </Typography>
+                  <Typography variant="body1">
+                    위치: A-12
+                  </Typography>
+                </Box>
+              )}
+              {tabValue === 2 && (
+                <Box>
+                  <Typography variant="body2" color="text.secondary">
+                    최근 30일 가격 변동
+                  </Typography>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <LineChart data={generatePriceHistory().slice(0, 7)}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="date" />
+                      <YAxis />
+                      <ChartTooltip />
+                      <Line type="monotone" dataKey="avgPrice" stroke="#8884d8" />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </Box>
+              )}
+            </Box>
+          </Grid>
+        </Grid>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>닫기</Button>
+        <Button 
+          variant="contained" 
+          onClick={() => {
+            onAddToCart(card);
+            onClose();
+          }}
+          disabled={card.stock === 0}
+        >
+          장바구니 추가
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
+
+// ==================== 사이드 메뉴 컴포넌트 ====================
+const SideMenu = ({ onClose }) => {
+  return (
+    <Box sx={{ width: 250, p: 2 }}>
+      <Typography variant="h6" sx={{ mb: 2 }}>
+        메뉴
+      </Typography>
+      <List>
+        <ListItem button>
+          <ListItemIcon>
+            <DashboardIcon />
+          </ListItemIcon>
+          <ListItemText primary="대시보드" />
+        </ListItem>
+        <ListItem button>
+          <ListItemIcon>
+            <InventoryIcon />
+          </ListItemIcon>
+          <ListItemText primary="재고 관리" />
+        </ListItem>
+        <ListItem button>
+          <ListItemIcon>
+            <ShoppingCartIcon />
+          </ListItemIcon>
+          <ListItemText primary="판매 관리" />
+        </ListItem>
+        <ListItem button>
+          <ListItemIcon>
+            <BarChartIcon />
+          </ListItemIcon>
+          <ListItemText primary="보고서" />
+        </ListItem>
+        <Divider sx={{ my: 1 }} />
+        <ListItem button>
+          <ListItemIcon>
+            <SettingsIcon />
+          </ListItemIcon>
+          <ListItemText primary="설정" />
+        </ListItem>
+      </List>
+    </Box>
+  );
+};
+
+// ==================== 유틸리티 함수들 ====================
+const generateSampleCards = () => {
+  const games = ['포켓몬', '원피스', '디지몬'];
+  const rarities = ['C', 'UC', 'R', 'SR', 'HR', 'UR'];
+  const cards = [];
+  
+  for (let i = 1; i <= 20; i++) {
+    cards.push({
+      id: i,
+      name: `샘플 카드 ${i}`,
+      cardNumber: `ST01-${String(i).padStart(3, '0')}`,
+      game: games[i % 3],
+      rarity: rarities[i % rarities.length],
+      price: Math.floor(Math.random() * 50000) + 1000,
+      stock: Math.floor(Math.random() * 20),
+      image: `https://via.placeholder.com/200x280?text=Card${i}`,
+      isFoil: i % 3 === 0
+    });
+  }
+  
+  return cards;
+};
+
+const generateSampleInventory = () => {
+  const items = [];
+  for (let i = 1; i <= 10; i++) {
+    items.push({
+      id: i,
+      cardNumber: `OP01-${String(i).padStart(3, '0')}`,
+      name: `카드 ${i}`,
+      rarity: ['C', 'UC', 'R', 'SR'][i % 4],
+      currentStock: Math.floor(Math.random() * 50),
+      reserved: Math.floor(Math.random() * 5),
+      minStock: 5,
+      location: `A-${i}`,
+      isNew: i <= 3
+    });
+  }
+  return items;
+};
+
+const generateSampleData = () => {
+  const data = [];
+  const days = ['월', '화', '수', '목', '금', '토', '일'];
+  
+  days.forEach((day, index) => {
+    data.push({
+      date: day,
+      sales: Math.floor(Math.random() * 1000000) + 500000,
+    });
+  });
+  
+  return data;
+};
+
+const generatePriceHistory = () => {
+  const history = [];
+  const today = new Date();
+  
+  for (let i = 29; i >= 0; i--) {
+    const date = new Date(today);
+    date.setDate(today.getDate() - i);
+    
+    history.push({
+      date: `${date.getMonth() + 1}/${date.getDate()}`,
+      avgPrice: Math.floor(Math.random() * 20000) + 30000,
+      minPrice: Math.floor(Math.random() * 15000) + 25000,
+      maxPrice: Math.floor(Math.random() * 25000) + 35000,
+    });
+  }
+  
+  return history;
+};
+
+export default TCGStoreManager;
