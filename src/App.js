@@ -1,10 +1,12 @@
 import './App.css';
 
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import UploadButton from './components/UploadButton/UploadButton';
-import ExcelProcessor from './components/ExcelProcessor/ExcelProcessor';
-import NaverStoreCardInfo from './components/NaverStoreCardInfo/NaverStoreCardInfo';
 import TopBar from './components/TopBar/TopBar';
+
+import MinimumPriceAdjust from './components/MinimumPriceAdjust/MinimumPriceAdjust';
+import StoreManagement from './components/StoreManagement/StoreManagement';
+import ExcelProcessor from './components/ExcelProcessor/ExcelProcessor';
+
 
 function App() {
 
@@ -13,10 +15,11 @@ function App() {
       <BrowserRouter>
 
           <TopBar />
-            <Routes>
-            <Route path="/minimumPriceAdjust" element={<ExcelProcessor />}></Route>
-            <Route path="/uploadTest" element={<UploadButton />}></Route>
-            <Route path="/storeInfo" element={<NaverStoreCardInfo />}></Route>
+          
+          <Routes>
+            <Route path="/minimumPriceAdjust" element={<MinimumPriceAdjust />}></Route>
+            <Route path="/storeManagement" element={<StoreManagement />}></Route>
+            <Route path="/excelProcessor" element={<ExcelProcessor />}></Route>
           </Routes>
 
 

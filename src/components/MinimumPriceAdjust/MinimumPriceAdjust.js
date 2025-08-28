@@ -1120,7 +1120,7 @@ const ProductGrid = ({ data, onProductUpdate, onDownloadExcel, onSetAllMinPrice,
 /**
  * Excel 카드 뷰어 메인 컴포넌트
  */
-export default function ExcelCardViewer() {
+export default function MinimumPriceAdjust() {
   const [file, setFile] = useState(null);
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
