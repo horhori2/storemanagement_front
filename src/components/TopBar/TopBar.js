@@ -20,17 +20,17 @@ export default function TopBar() {
         },
         { 
             path: "/minimumPriceAdjust", 
-            label: "최저가 검색 및 가격, 재고 수정", 
+            label: "네이버스토어 엑셀 가격, 재고 수정", 
             icon: <SearchIcon sx={{ mr: 1 }} />
         },
         { 
             path: "/storeManagement", 
-            label: "재고 확인 및 최저가 확인", 
+            label: "오프라인 싱글 카드 재고 확인", 
             icon: <StoreIcon sx={{ mr: 1 }} />
         },
         { 
-            path: "/excelProcessor", 
-            label: "엑셀 업로드 테스트", 
+            path: "/TCGCardManager", 
+            label: "매장 싱글 카드 관리", 
             koreanLabel: "업로드 테스트",
             icon: <CloudUploadIcon sx={{ mr: 1 }} />
         }
