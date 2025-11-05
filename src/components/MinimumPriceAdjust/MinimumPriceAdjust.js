@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   Box,
   Card,
@@ -19,7 +19,12 @@ import {
   FormControl,
   InputLabel,
   Select,
-  MenuItem
+  MenuItem,
+  LinearProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText
 } from '@mui/material';
 import {
   CloudUpload,
@@ -49,15 +54,19 @@ const EXCEL_CONFIG = {
   ],
   VALID_EXTENSIONS: ['.xlsx', '.xls', '.csv'],
   COLUMNS: {
-    PRODUCT_NAME: 3, // D열 (0-indexed)
-    PRICE: 5,        // F열
-    STOCK: 7,        // H열
-    IMAGE: 20        // U열
+    PRODUCT_NAME: 3,
+    PRICE: 5,
+    STOCK: 7,
+    IMAGE: 20
   },
-  START_ROW: 5,      // 6행부터 시작 (0-indexed로 5) - 원래대로 복원!
+  START_ROW: 5,
   MAX_EMPTY_ROWS: 2,
   MAX_SCAN_ROWS: 50000
 };
+
+// API 설정
+const API_BASE_URL = 'http://127.0.0.1:8000/api';
+const PROGRESS_POLL_INTERVAL = 2000; // 2초마다 진행 상황 확인
 
 /**
  * 상품 데이터 객체 생성
@@ -69,8 +78,8 @@ const createProduct = (productName = '', price = 0, stock = 0, image = '', isMod
   image,
   isModified,
   originalRowIndex,
-  originalPrice, // 최저가 검색 전 원본 가격
-  priceChange    // 가격 변경 정보 (+1000원, -500원 등)
+  originalPrice,
+  priceChange
 });
 
 /**
@@ -94,127 +103,22 @@ const validateFile = (file) => {
 };
 
 /**
- * 워크시트에 수정된 데이터 반영
- */
-const updateWorksheetWithModifiedData = (originalWorksheet, modifiedData) => {
-  console.log('=== 워크시트 업데이트 시작 ===');
-  console.log('원본 워크시트 정보:', originalWorksheet['!ref']);
-  console.log('수정할 데이터 개수:', modifiedData.filter(p => p.isModified).length);
-  
-  // 원본 워크시트의 모든 키 확인
-  const originalKeys = Object.keys(originalWorksheet);
-  console.log('원본 워크시트 셀 개수:', originalKeys.filter(key => !key.startsWith('!')).length);
-  
-  // 원본 워크시트 깊은 복사
-  const newWorksheet = {};
-  
-  // 모든 셀과 메타데이터를 복사
-  originalKeys.forEach(key => {
-    if (key.startsWith('!')) {
-      // 워크시트 메타데이터 복사
-      newWorksheet[key] = originalWorksheet[key];
-    } else {
-      // 셀 데이터 복사
-      newWorksheet[key] = { 
-        ...originalWorksheet[key],
-        v: originalWorksheet[key].v,
-        t: originalWorksheet[key].t,
-        w: originalWorksheet[key].w
-      };
-    }
-  });
-  
-  console.log('복사된 워크시트 셀 개수:', Object.keys(newWorksheet).filter(key => !key.startsWith('!')).length);
-  
-  // 수정된 데이터를 워크시트에 반영
-  modifiedData.forEach((product, arrayIndex) => {
-    if (product.isModified && product.originalRowIndex !== null) {
-      const rowIndex = product.originalRowIndex;
-      
-      console.log(`=== 상품 ${arrayIndex + 1} 업데이트 ===`);
-      console.log(`상품명: ${product.productName}`);
-      console.log(`원본 행: ${rowIndex + 1} (0-based: ${rowIndex})`);
-      console.log(`업데이트할 가격: ${product.price}`);
-      console.log(`업데이트할 재고: ${product.stock}`);
-      
-      // 가격 업데이트 (F열 = 인덱스 5)
-      const priceCell = XLSX.utils.encode_cell({ r: rowIndex, c: EXCEL_CONFIG.COLUMNS.PRICE });
-      const originalPriceCell = originalWorksheet[priceCell];
-      
-      console.log(`가격 셀 주소: ${priceCell}`);
-      console.log('원본 가격 셀:', originalPriceCell);
-      
-      // 원본 셀의 형식 정보를 유지하면서 값만 변경
-      newWorksheet[priceCell] = {
-        ...originalPriceCell, // 원본 셀의 모든 속성 유지
-        v: Number(product.price) || 0,
-        w: undefined // Excel이 자동으로 포맷하도록
-      };
-      
-      console.log('업데이트된 가격 셀:', newWorksheet[priceCell]);
-      
-      // 재고 업데이트 (H열 = 인덱스 7)
-      const stockCell = XLSX.utils.encode_cell({ r: rowIndex, c: EXCEL_CONFIG.COLUMNS.STOCK });
-      const originalStockCell = originalWorksheet[stockCell];
-      
-      console.log(`재고 셀 주소: ${stockCell}`);
-      console.log('원본 재고 셀:', originalStockCell);
-      
-      // 원본 셀의 형식 정보를 유지하면서 값만 변경
-      newWorksheet[stockCell] = {
-        ...originalStockCell, // 원본 셀의 모든 속성 유지
-        v: Number(product.stock) || 0,
-        w: undefined // Excel이 자동으로 포맷하도록
-      };
-      
-      console.log('업데이트된 재고 셀:', newWorksheet[stockCell]);
-    }
-  });
-  
-  // 중요: 워크시트 범위 재계산 및 강제 설정
-  console.log('=== 워크시트 범위 재계산 시작 ===');
-  console.log('원본 범위:', originalWorksheet['!ref']);
-  
-  // 기존 범위를 유지하되, 필요시 확장
-  const originalRange = XLSX.utils.decode_range(originalWorksheet['!ref']);
-  console.log('원본 범위 디코드:', originalRange);
-  
-  // 새로운 워크시트의 범위를 원본과 동일하게 설정
-  newWorksheet['!ref'] = originalWorksheet['!ref'];
-  
-  // 추가적으로 범위를 다시 계산하여 설정 (이중 보장)
-  const range = XLSX.utils.encode_range(originalRange);
-  newWorksheet['!ref'] = range;
-  
-  console.log('최종 설정된 범위:', newWorksheet['!ref']);
-  console.log('=== 워크시트 업데이트 완료 ===');
-  console.log('최종 워크시트 셀 개수:', Object.keys(newWorksheet).filter(key => !key.startsWith('!')).length);
-  
-  return newWorksheet;
-};
-
-/**
- * Django 백엔드로 수정된 데이터 전송 및 파일 다운로드 (원본 파일 직접 전송)
+ * Django 백엔드로 수정된 데이터 전송 및 파일 다운로드
  */
 const downloadModifiedExcel = async (originalWorkbook, modifiedData, originalFileName, originalFile) => {
-
   try {
     console.log('=== Django 백엔드로 파일 처리 요청 ===');
     
-    // 수정된 데이터만 필터링
     const modifiedItems = modifiedData.filter(p => p.isModified).map(product => ({
       originalRowIndex: product.originalRowIndex,
       productName: product.productName,
       price: Number(product.price) || 0,
       stock: Number(product.stock) || 0,
       excelRow: product.originalRowIndex + 1,
-      filterInfo: product.filterInfo || "",           // ⭐ 추가
-      validCount: product.validItemsCount || 0,       // ⭐ 추가
-      searchKeyword: product.searchKeyword || ""      // ⭐ 추가
+      filterInfo: product.filterInfo || "",
+      validCount: product.validItemsCount || 0,
+      searchKeyword: product.searchKeyword || ""
     }));
-
-    
-    console.log('백엔드로 전송할 수정 데이터:', modifiedItems);
     
     if (modifiedItems.length === 0) {
       console.warn('수정된 데이터가 없습니다.');
@@ -226,83 +130,29 @@ const downloadModifiedExcel = async (originalWorkbook, modifiedData, originalFil
       return false;
     }
     
-    console.log('원본 파일 정보:', {
-      name: originalFile.name,
-      size: originalFile.size,
-      type: originalFile.type,
-      lastModified: new Date(originalFile.lastModified)
-    });
-    
-    // FormData 생성
     const formData = new FormData();
-    
-    // 원본 파일을 직접 전송 (SheetJS 변환 없이)
     formData.append('excel_file', originalFile, originalFile.name);
     formData.append('modifications', JSON.stringify(modifiedItems));
     formData.append('original_filename', originalFile.name);
     
-    console.log('FormData 준비 완료 - 원본 파일 직접 전송');
-    console.log('수정 항목 개수:', modifiedItems.length);
-    console.log('원본 파일 크기:', originalFile.size, 'bytes');
-    
-    // Django API 호출 (타임아웃 설정)
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60초 타임아웃 (파일이 클 수 있으므로)
-    
-    let response;
-    try {
-        response = await fetch('http://127.0.0.1:8000/api/download-excel/', {
-        method: 'POST',
-        body: formData,
-        headers: {
-          'X-CSRFToken': getCsrfToken(),
-        },
-        signal: controller.signal
-      });
-
-      
-      clearTimeout(timeoutId);
-    } catch (error) {
-      clearTimeout(timeoutId);
-      if (error.name === 'AbortError') {
-        throw new Error('요청 시간이 초과되었습니다. 파일이 너무 크거나 서버 응답이 느립니다.');
+    const response = await fetch(`${API_BASE_URL}/download-excel/`, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'X-CSRFToken': getCsrfToken(),
       }
-      throw error;
-    }
-    
-    // 응답 상태 확인
-    console.log('서버 응답 상태:', response.status);
-    console.log('응답 헤더:', Object.fromEntries(response.headers.entries()));
+    });
     
     if (!response.ok) {
-      let errorMessage;
-      const contentType = response.headers.get('content-type');
-      
-      if (contentType && contentType.includes('application/json')) {
-        const errorData = await response.json();
-        errorMessage = errorData.error || `서버 에러: ${response.status}`;
-      } else {
-        const errorText = await response.text();
-        errorMessage = `서버 에러: ${response.status} ${errorText}`;
-      }
-      
-      console.error('Django API 에러:', response.status, errorMessage);
-      throw new Error(errorMessage);
+      throw new Error(`서버 에러: ${response.status}`);
     }
     
-    console.log('Django에서 파일 처리 완료, 다운로드 시작...');
-    
-    // 응답을 Blob으로 받아서 다운로드
     const responseBlob = await response.blob();
-    console.log('받은 응답 Blob 크기:', responseBlob.size, 'bytes');
-    console.log('응답 Blob 타입:', responseBlob.type);
     
-    // 파일 크기 검증
     if (responseBlob.size === 0) {
       throw new Error('서버에서 받은 파일의 크기가 0입니다.');
     }
     
-    // Content-Disposition 헤더에서 파일명 추출 (옵션)
     let downloadFileName = originalFile.name.replace(/\.[^/.]+$/, '') + '_modified.xlsx';
     const contentDisposition = response.headers.get('Content-Disposition');
     if (contentDisposition) {
@@ -312,41 +162,32 @@ const downloadModifiedExcel = async (originalWorkbook, modifiedData, originalFil
       }
     }
     
-    // 파일 다운로드 실행
     const url = window.URL.createObjectURL(responseBlob);
     const link = document.createElement('a');
     link.href = url;
     link.download = downloadFileName;
-    
-    // 브라우저 호환성을 위한 추가 속성
     link.style.display = 'none';
     link.rel = 'noopener';
     
     document.body.appendChild(link);
     link.click();
     
-    // 정리
     setTimeout(() => {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
     }, 100);
-    
-    console.log('=== 파일 다운로드 완료 ===');
-    console.log('다운로드된 파일명:', downloadFileName);
-    console.log('파일 크기:', responseBlob.size, 'bytes');
     
     return true;
     
   } catch (error) {
     console.error('=== Django 백엔드 처리 에러 ===');
     console.error('Error details:', error);
-    console.error('Stack trace:', error.stack);
     return false;
   }
 };
 
 /**
- * CSRF 토큰 가져오기 (Django CSRF 보호가 활성화된 경우)
+ * CSRF 토큰 가져오기
  */
 const getCsrfToken = () => {
   const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value ||
@@ -373,56 +214,26 @@ const getCookie = (name) => {
   return cookieValue;
 };
 
-// 수정된 extractDataFromWorksheet 함수
+/**
+ * 엑셀 데이터 추출
+ */
 const extractDataFromWorksheet = (worksheet) => {
   if (!worksheet['!ref']) return [];
   
   const extractedData = [];
-  
-  console.log('=== 데이터 추출 시작 ===');
-  console.log('워크시트 범위:', worksheet['!ref']);
-  
-  // 워크시트 범위 분석
   const range = XLSX.utils.decode_range(worksheet['!ref']);
-  console.log('워크시트 범위 상세:', {
-    startRow: range.s.r,
-    endRow: range.e.r,
-    startCol: range.s.c,
-    endCol: range.e.c,
-    totalRows: range.e.r + 1,
-    totalCols: range.e.c + 1
-  });
+  const startRow = 5;
   
-  // row 6부터 시작 (0-based로 5부터)
-  const startRow = 5; // Excel row 6
-  
-  // 워크시트의 실제 범위를 기준으로 하되, 최소한 충분히 스캔
-  // 워크시트 범위가 작으면 (row 5가 비어있어서) 강제로 더 많이 스캔
   let maxScanRow;
   if (range.e.r < 100) {
-    // 워크시트 범위가 작으면 강제로 1000행까지 스캔
     maxScanRow = 1000;
-    console.log(`⚠️ 워크시트 범위가 작음 (${range.e.r + 1}행). 강제로 1000행까지 스캔`);
   } else {
-    // 워크시트 범위가 충분하면 그 범위 + 여유분으로 스캔
-    maxScanRow = Math.min(range.e.r + 100, 5000); // 최대 5000행까지
-    console.log(`워크시트 범위 기반 스캔: ${maxScanRow}행까지`);
+    maxScanRow = Math.min(range.e.r + 100, 5000);
   }
   
-  console.log(`=== Row 6부터 데이터 스캔 시작 ===`);
-  console.log(`스캔 범위: Excel 행 ${startRow + 1}부터 ${maxScanRow}까지`);
-  
-  // row 1-5 상태 확인 (참고용)
-  console.log('Row 1-5 상태 (스캔 제외):');
-  for (let i = 0; i < 5; i++) {
-    const sampleD = worksheet[XLSX.utils.encode_cell({ r: i, c: 3 })]?.v;
-    console.log(`  Excel 행 ${i + 1}: D='${sampleD}' (헤더/구분선)`);
-  }
-  
-  // row 6부터 실제 상품 데이터 스캔
   let foundCount = 0;
   let consecutiveEmptyRows = 0;
-  const MAX_EMPTY_ROWS = 20; // 연속 빈 행 허용 개수
+  const MAX_EMPTY_ROWS = 20;
   
   for (let scanRow = startRow; scanRow <= maxScanRow; scanRow++) {
     const cells = {
@@ -432,7 +243,6 @@ const extractDataFromWorksheet = (worksheet) => {
       image: worksheet[XLSX.utils.encode_cell({ r: scanRow, c: EXCEL_CONFIG.COLUMNS.IMAGE })]?.v
     };
     
-    // 상품명이 있으면 유효한 데이터로 판단
     if (cells.productName && 
         cells.productName !== '' && 
         cells.productName !== null && 
@@ -440,68 +250,154 @@ const extractDataFromWorksheet = (worksheet) => {
         String(cells.productName).trim() !== '') {
       
       foundCount++;
-      consecutiveEmptyRows = 0; // 빈 행 카운터 리셋
+      consecutiveEmptyRows = 0;
       
-      // 처음 10개 상품만 상세 로그
-      if (foundCount <= 10) {
-        console.log(`✓ 상품 ${foundCount} 발견 - Excel 행 ${scanRow + 1}:`);
-        console.log(`  상품명: ${cells.productName}`);
-        console.log(`  가격: ${cells.price}`);
-        console.log(`  재고: ${cells.stock}`);
-        console.log(`  이미지: ${cells.image ? '있음' : '없음'}`);
-      }
-      
-      // 상품 객체 생성
       extractedData.push(createProduct(
         String(cells.productName).trim(),
         cells.price || 0,
         cells.stock || 0,
         cells.image || '',
-        false, // isModified
-        scanRow // originalRowIndex (0-based)
+        false,
+        scanRow
       ));
     } else {
       consecutiveEmptyRows++;
       
-      // 연속 빈 행이 MAX_EMPTY_ROWS를 넘으면 스캔 중단
       if (consecutiveEmptyRows >= MAX_EMPTY_ROWS) {
-        console.log(`연속 ${MAX_EMPTY_ROWS}개 빈 행 감지, 스캔 중단 (Excel 행 ${scanRow + 1})`);
         break;
       }
-    }
-    
-    // 진행률 표시 (1000행마다)
-    if (scanRow % 1000 === 0 && scanRow > startRow) {
-      console.log(`스캔 진행률: ${scanRow}행까지 완료, 발견된 상품: ${foundCount}개`);
-    }
-  }
-  
-  console.log(`=== 데이터 추출 완료 ===`);
-  console.log(`총 ${extractedData.length}개의 상품을 찾았습니다 (Row 6부터)`);
-  console.log(`최종 스캔 범위: Excel 행 ${startRow + 1}부터 ${Math.min(startRow + consecutiveEmptyRows + extractedData.length, maxScanRow)}까지`);
-  
-  // 추출된 데이터 요약 (처음 5개만)
-  if (extractedData.length > 0) {
-    console.log('추출된 상품 요약 (처음 5개):');
-    extractedData.slice(0, 5).forEach((product, idx) => {
-      console.log(`${idx + 1}. ${product.productName} (Excel 행: ${product.originalRowIndex + 1})`);
-    });
-    
-    if (extractedData.length > 5) {
-      console.log(`... 외 ${extractedData.length - 5}개 더`);
-    }
-  } else {
-    console.warn('⚠️ Row 6부터 상품 데이터를 찾을 수 없습니다!');
-    console.log('Row 6-15 샘플 데이터:');
-    for (let i = 5; i < 15; i++) {
-      const sampleD = worksheet[XLSX.utils.encode_cell({ r: i, c: 3 })]?.v;
-      const sampleF = worksheet[XLSX.utils.encode_cell({ r: i, c: 5 })]?.v;
-      const sampleH = worksheet[XLSX.utils.encode_cell({ r: i, c: 7 })]?.v;
-      console.log(`  Excel 행 ${i + 1}: D='${sampleD}' F='${sampleF}' H='${sampleH}'`);
     }
   }
   
   return extractedData;
+};
+
+// ===============================
+// 진행 상황 표시 컴포넌트
+// ===============================
+
+/**
+ * 진행 상황 표시 다이얼로그
+ */
+const ProgressDialog = ({ open, progressData, onClose }) => {
+  const formatTime = (seconds) => {
+    if (seconds < 60) return `약 ${seconds}초`;
+    const minutes = Math.ceil(seconds / 60);
+    return `약 ${minutes}분`;
+  };
+
+  const getStageMessage = (stage) => {
+    switch (stage) {
+      case 'initializing':
+        return '작업을 준비하고 있습니다...';
+      case 'processing':
+        return '최저가를 검색하고 있습니다...';
+      case 'completed':
+        return '✅ 작업이 완료되었습니다!';
+      case 'error':
+        return '❌ 오류가 발생했습니다';
+      default:
+        return '처리 중...';
+    }
+  };
+
+  return (
+    <Dialog 
+      open={open} 
+      onClose={progressData?.stage === 'completed' ? onClose : undefined}
+      maxWidth="sm"
+      fullWidth
+      disableEscapeKeyDown={progressData?.stage !== 'completed'}
+    >
+      <DialogTitle>
+        {progressData?.stage === 'completed' ? '작업 완료' : '최저가 검색 중'}
+      </DialogTitle>
+      <DialogContent>
+        <Box sx={{ width: '100%', mb: 2 }}>
+          {/* 진행률 바 */}
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+            <Box sx={{ width: '100%', mr: 1 }}>
+              <LinearProgress 
+                variant="determinate" 
+                value={progressData?.progress || 0}
+                sx={{ height: 10, borderRadius: 5 }}
+              />
+            </Box>
+            <Box sx={{ minWidth: 50 }}>
+              <Typography variant="body2" color="text.secondary">
+                {progressData?.progress || 0}%
+              </Typography>
+            </Box>
+          </Box>
+
+          {/* 상태 메시지 */}
+          <DialogContentText sx={{ mb: 2 }}>
+            {progressData?.message || getStageMessage(progressData?.stage)}
+          </DialogContentText>
+
+          {/* 진행 정보 */}
+          {progressData?.stage === 'processing' && (
+            <Box sx={{ bgcolor: 'grey.50', p: 2, borderRadius: 1, mb: 2 }}>
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                처리 중: <strong>{progressData?.processed_items || 0}</strong> / {progressData?.total_items || 0} 상품
+              </Typography>
+              
+              {progressData?.estimated_time > 0 && (
+                <Typography variant="body2" color="primary">
+                  남은 시간: <strong>{formatTime(progressData.estimated_time)}</strong>
+                </Typography>
+              )}
+              
+              {progressData?.current_item && (
+                <Typography 
+                  variant="caption" 
+                  color="text.secondary"
+                  sx={{ 
+                    display: 'block', 
+                    mt: 1,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  현재: {progressData.current_item}
+                </Typography>
+              )}
+            </Box>
+          )}
+
+          {/* 완료 메시지 */}
+          {progressData?.stage === 'completed' && (
+            <Box sx={{ textAlign: 'center', py: 2 }}>
+              <CheckCircle sx={{ fontSize: 64, color: 'success.main', mb: 2 }} />
+              <Typography variant="h6" color="success.main">
+                모든 상품의 최저가 검색이 완료되었습니다!
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                카드 화면에서 변경된 가격을 확인하세요
+              </Typography>
+            </Box>
+          )}
+
+          {/* 에러 메시지 */}
+          {progressData?.stage === 'error' && (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              {progressData?.error || '알 수 없는 오류가 발생했습니다'}
+            </Alert>
+          )}
+        </Box>
+
+        {/* 닫기 버튼 (완료 시에만) */}
+        {progressData?.stage === 'completed' && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+            <Button variant="contained" onClick={onClose}>
+              확인
+            </Button>
+          </Box>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
 };
 
 // ===============================
@@ -610,13 +506,11 @@ const ProductCard = ({ product, index, onProductUpdate }) => {
     return price || '가격 정보 없음';
   };
 
-  // 가격 변경 정보 렌더링 함수
   const renderPriceInfo = () => {
     const currentPrice = product.price || 0;
     const originalPrice = product.originalPrice;
     const priceChange = product.priceChange;
 
-    // 최저가 검색을 통해 업데이트된 경우
     if (originalPrice && originalPrice !== currentPrice) {
       const difference = currentPrice - originalPrice;
       const isIncrease = difference > 0;
@@ -624,7 +518,6 @@ const ProductCard = ({ product, index, onProductUpdate }) => {
 
       return (
         <Box sx={{ mb: 1 }}>
-          {/* 현재 가격 (업데이트된 가격) */}
           <Typography 
             variant="body1" 
             fontWeight="bold" 
@@ -634,7 +527,6 @@ const ProductCard = ({ product, index, onProductUpdate }) => {
             {formatPrice(currentPrice)}
           </Typography>
           
-          {/* 기존 가격 (취소선) */}
           <Typography 
             variant="caption" 
             sx={{ 
@@ -647,7 +539,6 @@ const ProductCard = ({ product, index, onProductUpdate }) => {
             기존: {formatPrice(originalPrice)}
           </Typography>
           
-          {/* 가격 변동 표시 */}
           {(isIncrease || isDecrease) && (
             <Box sx={{ 
               display: 'flex', 
@@ -675,7 +566,6 @@ const ProductCard = ({ product, index, onProductUpdate }) => {
       );
     }
 
-    // 일반적인 경우 (수동 수정 또는 최저가 검색 전)
     return (
       <Typography 
         variant="body2" 
@@ -710,14 +600,12 @@ const ProductCard = ({ product, index, onProductUpdate }) => {
       price: Number(editValues.price) || 0,
       stock: Number(editValues.stock) || 0,
       isModified: true
-      // originalRowIndex는 그대로 유지됨
     };
     onProductUpdate(index, updatedProduct);
     setIsEditing(false);
   };
 
   const handleInputChange = (field, value) => {
-    // 숫자만 입력 허용
     const numericValue = value.replace(/[^0-9]/g, '');
     setEditValues(prev => ({
       ...prev,
@@ -740,7 +628,6 @@ const ProductCard = ({ product, index, onProductUpdate }) => {
       position: 'relative',
       border: product.isModified ? '2px solid #4caf50' : '1px solid rgba(0, 0, 0, 0.12)'
     }}>
-      {/* 수정됨 표시 */}
       {product.isModified && (
         <Chip
           icon={<CheckCircle />}
@@ -808,12 +695,10 @@ const ProductCard = ({ product, index, onProductUpdate }) => {
           {product.productName || '상품명 없음'}
         </Typography>
         
-        {/* 행 번호 표시 (디버그용) */}
         <Typography variant="caption" color="warning.main" display="block" mb={0.5}>
           Excel Row: {(product.originalRowIndex || 0) + 1}
         </Typography>
         
-        {/* 재고 정보 */}
         {isEditing ? (
           <Box sx={{ mb: 1 }}>
             <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
@@ -839,7 +724,6 @@ const ProductCard = ({ product, index, onProductUpdate }) => {
           </Typography>
         )}
         
-        {/* 가격 정보 */}
         {isEditing ? (
           <Box sx={{ mb: 2 }}>
             <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
@@ -865,7 +749,6 @@ const ProductCard = ({ product, index, onProductUpdate }) => {
           </Box>
         )}
 
-        {/* 액션 버튼 */}
         <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
           {isEditing ? (
             <>
@@ -951,7 +834,6 @@ const ProductGrid = ({ data, onProductUpdate, onDownloadExcel, onSetAllMinPrice,
   const [sortOption, setSortOption] = useState('default');
   const modifiedCount = data.filter(product => product.isModified).length;
 
-  // 정렬 옵션 정의
   const sortOptions = [
     { value: 'default', label: '기본 순서' },
     { value: 'priceHighToLow', label: '높은 가격 순' },
@@ -960,21 +842,17 @@ const ProductGrid = ({ data, onProductUpdate, onDownloadExcel, onSetAllMinPrice,
     { value: 'priceDecreaseDesc', label: '가격 하락 순' }
   ];
 
-  // 데이터 정렬 함수
   const getSortedData = () => {
     const sortedData = [...data];
 
     switch (sortOption) {
       case 'priceHighToLow':
-        // 높은 가격 순
         return sortedData.sort((a, b) => (b.price || 0) - (a.price || 0));
         
       case 'priceLowToHigh':
-        // 낮은 가격 순
         return sortedData.sort((a, b) => (a.price || 0) - (b.price || 0));
         
       case 'priceIncreaseDesc':
-        // 가격 상승 순 (변경된 가격이 큰 순)
         return sortedData.sort((a, b) => {
           const aIncrease = (a.originalPrice && a.price > a.originalPrice) ? 
             (a.price - a.originalPrice) : -Infinity;
@@ -984,7 +862,6 @@ const ProductGrid = ({ data, onProductUpdate, onDownloadExcel, onSetAllMinPrice,
         });
         
       case 'priceDecreaseDesc':
-        // 가격 하락 순 (변경된 가격이 큰 순, 절댓값)
         return sortedData.sort((a, b) => {
           const aDecrease = (a.originalPrice && a.price < a.originalPrice) ? 
             (a.originalPrice - a.price) : -Infinity;
@@ -994,7 +871,6 @@ const ProductGrid = ({ data, onProductUpdate, onDownloadExcel, onSetAllMinPrice,
         });
         
       default:
-        // 기본 순서 (originalRowIndex 순)
         return sortedData.sort((a, b) => (a.originalRowIndex || 0) - (b.originalRowIndex || 0));
     }
   };
@@ -1013,7 +889,6 @@ const ProductGrid = ({ data, onProductUpdate, onDownloadExcel, onSetAllMinPrice,
         </Typography>
         
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-          {/* 정렬 드롭다운 */}
           <FormControl size="small" sx={{ minWidth: 150 }}>
             <InputLabel id="sort-select-label">
               <Sort sx={{ fontSize: 16, mr: 0.5 }} />
@@ -1034,7 +909,6 @@ const ProductGrid = ({ data, onProductUpdate, onDownloadExcel, onSetAllMinPrice,
             </Select>
           </FormControl>
           
-          {/* 모든 카드 최저가로 변경 버튼 */}
           <Button
             variant="outlined"
             onClick={onSetAllMinPrice}
@@ -1080,7 +954,6 @@ const ProductGrid = ({ data, onProductUpdate, onDownloadExcel, onSetAllMinPrice,
         </Box>
       </Box>
 
-      {/* 현재 정렬 상태 표시 */}
       {sortOption !== 'default' && (
         <Box sx={{ mb: 2 }}>
           <Chip
@@ -1106,9 +979,9 @@ const ProductGrid = ({ data, onProductUpdate, onDownloadExcel, onSetAllMinPrice,
       }}>
         {sortedData.map((product, index) => (
           <ProductCard 
-            key={`${product.originalRowIndex}-${index}`} // 정렬 시 키 충돌 방지
+            key={`${product.originalRowIndex}-${index}`}
             product={product} 
-            index={data.indexOf(product)} // 원본 배열에서의 인덱스 전달
+            index={data.indexOf(product)}
             onProductUpdate={onProductUpdate}
           />
         ))}
@@ -1130,8 +1003,96 @@ export default function MinimumPriceAdjust() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [downloadLoading, setDownloadLoading] = useState(false);
-  const [originalFile, setOriginalFile] = useState(null); // 원본 파일 저장용 state 추가
-  const [originalWorkbook, setOriginalWorkbook] = useState(null); // 원본 파일 저장용 state 추가
+  const [originalFile, setOriginalFile] = useState(null);
+  const [originalWorkbook, setOriginalWorkbook] = useState(null);
+  
+  // 진행 상황 관련 state
+  const [jobId, setJobId] = useState(null);
+  const [progressData, setProgressData] = useState(null);
+  const [progressDialogOpen, setProgressDialogOpen] = useState(false);
+
+  /**
+   * 진행 상황 폴링
+   */
+  useEffect(() => {
+    if (!jobId) return;
+
+    const pollProgress = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/progress/${jobId}/`);
+        
+        if (!response.ok) {
+          console.error('진행 상황 조회 실패:', response.status);
+          return;
+        }
+
+        const data = await response.json();
+        setProgressData(data);
+
+        // 완료 또는 에러 상태면 폴링 중지
+        if (data.stage === 'completed') {
+          // 결과를 프론트엔드 데이터에 반영
+          if (data.results && data.results.results) {
+            updateDataWithResults(data.results.results);
+          }
+          
+          setTimeout(() => {
+            setProgressDialogOpen(false);
+            setJobId(null);
+            setDownloadLoading(false);
+          }, 2000); // 2초 후 다이얼로그 닫기
+        } else if (data.stage === 'error') {
+          setError(data.error || '작업 중 오류가 발생했습니다');
+          setTimeout(() => {
+            setProgressDialogOpen(false);
+            setJobId(null);
+            setDownloadLoading(false);
+          }, 3000);
+        }
+      } catch (err) {
+        console.error('진행 상황 확인 중 오류:', err);
+      }
+    };
+
+    // 초기 폴링
+    pollProgress();
+
+    // 주기적 폴링 설정
+    const intervalId = setInterval(pollProgress, PROGRESS_POLL_INTERVAL);
+
+    // 클린업
+    return () => clearInterval(intervalId);
+  }, [jobId]);
+
+  /**
+   * API 결과를 프론트엔드 데이터에 반영
+   */
+  const updateDataWithResults = (results) => {
+    setData(prevData => {
+      const updatedData = prevData.map(product => {
+        const result = results.find(r => 
+          r.productName === product.productName
+        );
+        
+        if (result && result.newPrice !== result.currentPrice) {
+          return {
+            ...product,
+            price: result.newPrice,
+            originalPrice: result.currentPrice,
+            priceChange: result.priceDiff > 0 ? `+${result.priceDiff}원` : `${result.priceDiff}원`,
+            filterInfo: result.filterInfo,
+            validItemsCount: result.validItemsCount,
+            searchKeyword: result.searchKeyword,
+            isModified: true
+          };
+        }
+        
+        return product;
+      });
+      
+      return updatedData;
+    });
+  };
 
   /**
    * 파일 업로드 처리
@@ -1139,7 +1100,6 @@ export default function MinimumPriceAdjust() {
   const handleFileUpload = useCallback(async (event) => {
     const uploadedFile = event.target.files[0];
     
-    // 파일 검증
     const validation = validateFile(uploadedFile);
     if (!validation.isValid) {
       setError(validation.error);
@@ -1147,7 +1107,7 @@ export default function MinimumPriceAdjust() {
     }
 
     setFile(uploadedFile);
-    setOriginalFile(uploadedFile); // 원본 파일 별도 저장
+    setOriginalFile(uploadedFile);
     setLoading(true);
     setError(null);
 
@@ -1155,22 +1115,12 @@ export default function MinimumPriceAdjust() {
       const arrayBuffer = await uploadedFile.arrayBuffer();
       const workbook = XLSX.read(arrayBuffer, { type: 'array' });
       
-      // 원본 워크북 저장 (디스플레이용)
       setOriginalWorkbook(workbook);
       
       const firstSheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[firstSheetName];
       
       const extractedData = extractDataFromWorksheet(worksheet);
-      
-      // 원본 행 인덱스 설정 검증
-      console.log('=== 추출된 데이터 검증 ===');
-      extractedData.forEach((product, idx) => {
-        console.log(`${idx + 1}. ${product.productName}`);
-        console.log(`   - originalRowIndex: ${product.originalRowIndex}`);
-        console.log(`   - Excel 행 번호: ${product.originalRowIndex + 1}`);
-        console.log(`   - 가격: ${product.price}, 재고: ${product.stock}`);
-      });
       
       setData(extractedData);
       
@@ -1207,7 +1157,7 @@ export default function MinimumPriceAdjust() {
   }, [originalWorkbook, data, file, originalFile]);
 
   /**
-   * 모든 상품을 최저가로 변경 (네이버 API 사용)
+   * 모든 상품을 최저가로 변경 (비동기 처리)
    */
   const handleSetAllMinPrice = useCallback(async () => {
     if (!originalFile) {
@@ -1215,7 +1165,6 @@ export default function MinimumPriceAdjust() {
       return;
     }
     
-    // 확인 대화상자
     const confirmed = window.confirm(
       '네이버 쇼핑 API를 통해 모든 상품의 최저가를 검색하여 가격을 업데이트하시겠습니까?\n' +
       '상품 수가 많을 경우 시간이 오래 걸릴 수 있습니다.'
@@ -1229,92 +1178,17 @@ export default function MinimumPriceAdjust() {
     console.log(`대상 상품 수: ${data.length}개`);
     
     setDownloadLoading(true);
+    setError(null);
     
     try {
-      // 네이버 최저가 검색 API 호출
-      const result = await callLowestPriceAPI(originalFile, file.name);
-      
-      if (result.success && result.priceChanges) {
-        console.log('받은 가격 변경 데이터:', result.priceChanges);
-        
-        // 프론트엔드 데이터를 실제 최저가로 업데이트
-        setData(prevData => {
-          const updatedData = prevData.map(product => {
-            // Django에서 받은 가격 변경 정보 찾기
-            const priceChange = result.priceChanges.find(change => {
-              // 상품명으로 매칭 (또는 행 번호로 매칭)
-              return change.product_name === product.productName || 
-                     change.row === (product.originalRowIndex + 1);
-            });
-            
-            if (priceChange && priceChange.new_price) {
-              const originalPrice = Number(priceChange.original_price) || product.price;
-              const newPrice = Number(priceChange.new_price);
-              
-              console.log(`${product.productName}: ${originalPrice} → ${newPrice} (${priceChange.change})`);
-              
-              return {
-                ...product,
-                price: newPrice,
-                originalPrice: originalPrice,
-                priceChange: priceChange.change,
-                filterInfo: priceChange.filter_info,              // ⭐ 추가
-                validItemsCount: priceChange.valid_items_count || 0,  // ⭐ 추가
-                searchKeyword: priceChange.search_keyword,        // ⭐ 추가
-                isModified: true
-              };
-            }
-            
-            // 변경 사항이 없으면 기존 데이터 유지
-            return product;
-          });
-          
-          const changedCount = updatedData.filter(p => p.isModified).length;
-          console.log(`${changedCount}개 상품의 가격이 최저가로 업데이트되었습니다`);
-          
-          return updatedData;
-        });
-        
-        // 성공 알림
-        alert(`최저가 검색이 완료되었습니다!\n카드 화면에서 변경된 가격을 확인하세요.`);
-        
-      } else {
-        console.error('가격 변경 데이터를 받지 못했습니다:', result);
-        setError(result.error || '최저가 검색 중 오류가 발생했습니다.');
-      }
-      
-    } catch (err) {
-      setError('최저가 검색 중 오류가 발생했습니다: ' + err.message);
-      console.error('Lowest price search error:', err);
-    } finally {
-      setDownloadLoading(false);
-    }
-  }, [originalFile, file, data]);
-
-    /**
-   * 네이버 최저가 검색 API 호출 (수정됨)
-   */
-  const callLowestPriceAPI = useCallback(async (originalFile, originalFileName) => {
-    try {
-      console.log('=== 최저가 검색 API 호출 시작 ===');
-      
-      if (!data || data.length === 0) {
-        console.error('상품 데이터가 없습니다.');
-        return { success: false, error: '상품 데이터가 없습니다.' };
-      }
-      
-      console.log(`대상 상품 수: ${data.length}개`);
-      
       // 상품 데이터를 API 요청 형식으로 변환
       const items = data.map(product => ({
         productName: product.productName,
         currentPrice: Number(product.price) || 0
       }));
       
-      console.log('API 전송 데이터:', items.slice(0, 3), '...(총', items.length, '개)');
-      
-      // Django API 호출 - search-prices 엔드포인트 사용 (변경됨!)
-      const response = await fetch('http://127.0.0.1:8000/api/search-prices/', {
+      // Django API 호출 - 비동기 작업 시작
+      const response = await fetch(`${API_BASE_URL}/search-prices/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1323,51 +1197,28 @@ export default function MinimumPriceAdjust() {
         body: JSON.stringify({ items })
       });
       
-      console.log('서버 응답 상태:', response.status);
-      
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('서버 에러 응답:', errorText);
-        throw new Error(`서버 에러: ${response.status}`);
+        throw new Error(`서버 에러: ${response.status} ${errorText}`);
       }
       
-      // JSON 응답 처리
+      // Job ID 받기
       const result = await response.json();
-      console.log('API 응답 결과:', result);
+      console.log('Job 시작:', result);
       
-      // Django에서 보내주는 데이터 구조 확인 (변경됨!)
-      if (result.results && Array.isArray(result.results)) {
-        console.log(`${result.results.length}개 상품의 가격 정보를 받았습니다.`);
-        
-        // 응답 데이터를 프론트엔드 형식으로 변환
-        const priceChanges = result.results.map(item => ({
-          product_name: item.productName,
-          original_price: item.currentPrice,
-          new_price: item.newPrice,
-          change: item.priceDiff > 0 ? `+${item.priceDiff}원` : `${item.priceDiff}원`,
-          card_type: item.cardType,
-          filter_info: item.filterInfo,
-          search_keyword: item.searchKeyword,
-          valid_items_count: item.validItemsCount  // ⭐ 추가
-        }));
-        
-        return { 
-          success: true, 
-          priceChanges: priceChanges,
-          message: `${result.totalProcessed}개 상품 처리 완료`
-        };
+      if (result.job_id) {
+        setJobId(result.job_id);
+        setProgressDialogOpen(true);
       } else {
-        console.warn('예상과 다른 응답 형식:', result);
-        return { success: false, error: '가격 정보를 받지 못했습니다.' };
+        throw new Error('Job ID를 받지 못했습니다');
       }
       
-    } catch (error) {
-      console.error('=== 최저가 검색 API 처리 에러 ===');
-      console.error('Error details:', error);
-      console.error('Stack trace:', error.stack);
-      return { success: false, error: error.message };
+    } catch (err) {
+      setError('최저가 검색 중 오류가 발생했습니다: ' + err.message);
+      console.error('Lowest price search error:', err);
+      setDownloadLoading(false);
     }
-  }, [data]); // 의존성 배열에 data 추가!
+  }, [originalFile, data]);
 
   /**
    * 상품 데이터 업데이트
@@ -1385,12 +1236,22 @@ export default function MinimumPriceAdjust() {
    */
   const resetFile = useCallback(() => {
     setFile(null);
-    setOriginalFile(null); // 원본 파일도 초기화
-    setOriginalWorkbook(null); // 워크북도 초기화
+    setOriginalFile(null);
+    setOriginalWorkbook(null);
     setData([]);
     setError(null);
     setDownloadLoading(false);
+    setJobId(null);
+    setProgressData(null);
   }, []);
+
+  /**
+   * 진행 다이얼로그 닫기
+   */
+  const handleCloseProgressDialog = () => {
+    setProgressDialogOpen(false);
+    setJobId(null);
+  };
 
   return (
     <Box sx={{ 
@@ -1418,14 +1279,7 @@ export default function MinimumPriceAdjust() {
           )}
 
           {/* 로딩 상태 */}
-          {(loading || downloadLoading) && (
-            <LoadingState />
-          )}
-          {downloadLoading && (
-            <Typography variant="body2" color="text.secondary" textAlign="center" mt={1}>
-              수정된 파일을 준비하고 있습니다...
-            </Typography>
-          )}
+          {loading && <LoadingState />}
 
           {/* 에러 메시지 */}
           {error && (
@@ -1463,6 +1317,13 @@ export default function MinimumPriceAdjust() {
           </Paper>
         )}
       </Container>
+
+      {/* 진행 상황 다이얼로그 */}
+      <ProgressDialog 
+        open={progressDialogOpen}
+        progressData={progressData}
+        onClose={handleCloseProgressDialog}
+      />
     </Box>
   );
 }
