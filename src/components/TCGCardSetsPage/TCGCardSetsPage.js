@@ -1,11 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
   Box,
-  Card,
-  CardContent,
-  CardMedia,
-  CardActionArea,
-  CardActions,
   Grid,
   Typography,
   Container,
@@ -21,48 +16,42 @@ import {
   Skeleton,
   Breadcrumbs,
   Link,
-  Badge,
   Avatar,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemAvatar,
-  Divider,
-  Fade,
-  Grow,
-  ToggleButton,
-  ToggleButtonGroup,
   useTheme,
   useMediaQuery,
   Stack,
   styled,
   Alert,
   Snackbar,
-  IconButton
+  IconButton,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow
 } from '@mui/material';
 
 import {
   Search as SearchIcon,
-  ViewModule as ViewModuleIcon,
-  ViewList as ViewListIcon,
   CalendarMonth as CalendarIcon,
   Collections as CollectionsIcon,
   SportsEsports as PokemonIcon,
   Sailing as OnePieceIcon,
   Pets as DigimonIcon,
   NavigateNext as NavigateNextIcon,
-  ShoppingCart as ShoppingCartIcon,
   ArrowUpward as ArrowUpIcon,
   ArrowDownward as ArrowDownIcon,
   Error as ErrorIcon,
   Refresh as RefreshIcon
 } from '@mui/icons-material';
 
-// CardSetDetail 컴포넌트 import (실제 프로젝트에서는)
+// 컴포넌트 imports (실제 프로젝트에서는 적절한 경로로 수정)
 import CardSetDetail from '../CardSetDetailPage/CardSetDetailPage';
+import CardDetailPage from '../CardDetailPage/CardDetailPage';
 
 // API 설정
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000/api';
 
 // API 클라이언트
 const apiClient = {
@@ -111,6 +100,10 @@ const apiService = {
 
   getSetCards: async (setCode, params = {}) => {
     return apiClient.get(`/sets/${setCode}/cards/`, params);
+  },
+
+  getSetDetail: async (setCode) => {
+    return apiClient.get(`/sets/`, { set_code: setCode });
   }
 };
 
@@ -149,18 +142,6 @@ const utils = {
 };
 
 // 커스텀 스타일 컴포넌트
-const StyledCard = styled(Card)(({ theme }) => ({
-  height: '100%',
-  display: 'flex',
-  flexDirection: 'column',
-  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-  '&:hover': {
-    transform: 'translateY(-8px)',
-    boxShadow: theme.shadows[12],
-  },
-  cursor: 'pointer',
-}));
-
 const GameHeaderBox = styled(Paper)(({ theme, gamecolor }) => ({
   padding: theme.spacing(4),
   marginBottom: theme.spacing(3),
@@ -191,76 +172,143 @@ const StyledTab = styled(Tab)(({ theme }) => ({
   },
 }));
 
-// 그리드 뷰 컴포넌트
-const GridView = ({ sets, onSetClick }) => {
+// 게시판 스타일 테이블 뷰 컴포넌트
+const BoardView = ({ sets, onSetClick, sortBy, sortOrder, onSortChange }) => {
+  const handleSort = (property) => {
+    onSortChange(property);
+  };
+
+  const getSortIcon = (property) => {
+    if (sortBy === property) {
+      return sortOrder === 'desc' ? <ArrowDownIcon fontSize="small" /> : <ArrowUpIcon fontSize="small" />;
+    }
+    return null;
+  };
+
   return (
-    <Grid container spacing={3}>
-      {sets.map((set, index) => (
-        <Grid item xs={12} sm={6} md={4} lg={3} key={set.id}>
-          <Grow in={true} timeout={300 + index * 100}>
-            <StyledCard onClick={() => onSetClick(set.set_code)}>
-              <CardActionArea sx={{ flexGrow: 1 }}>
-                <Box sx={{ position: 'relative' }}>
-                  <CardMedia
-                    component="img"
-                    height="240"
-                    image={set.image_url || `https://via.placeholder.com/400x280/1976d2/ffffff?text=${encodeURIComponent(set.name_kr || set.name)}`}
-                    alt={set.name_kr || set.name}
-                    sx={{ objectFit: 'cover' }}
-                  />
-                  <Stack 
-                    direction="row" 
-                    spacing={1} 
-                    sx={{ 
-                      position: 'absolute', 
-                      top: 8, 
-                      right: 8 
-                    }}
-                  >
-                    {set.is_new && (
-                      <Chip
-                        label="NEW"
-                        size="small"
-                        sx={{ 
-                          bgcolor: 'error.main', 
-                          color: 'white',
-                          fontWeight: 'bold'
-                        }}
-                      />
-                    )}
-                  </Stack>
-                </Box>
-                
-                <CardContent>
-                  <Typography variant="caption" color="text.secondary" display="block">
-                    {set.set_code}
-                  </Typography>
-                  <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>
+    <TableContainer component={Paper} elevation={1}>
+      <Table>
+        <TableHead>
+          <TableRow sx={{ backgroundColor: 'grey.50' }}>
+            <TableCell width="120">
+              <Button
+                onClick={() => handleSort('set_code')}
+                sx={{ 
+                  textTransform: 'none', 
+                  color: 'text.primary',
+                  fontWeight: 'bold',
+                  justifyContent: 'flex-start',
+                  p: 0
+                }}
+                endIcon={getSortIcon('set_code')}
+              >
+                세트 코드
+              </Button>
+            </TableCell>
+            <TableCell>
+              <Button
+                onClick={() => handleSort('name')}
+                sx={{ 
+                  textTransform: 'none', 
+                  color: 'text.primary',
+                  fontWeight: 'bold',
+                  justifyContent: 'flex-start',
+                  p: 0
+                }}
+                endIcon={getSortIcon('name')}
+              >
+                세트명
+              </Button>
+            </TableCell>
+            <TableCell width="120">
+              <Button
+                onClick={() => handleSort('release_date')}
+                sx={{ 
+                  textTransform: 'none', 
+                  color: 'text.primary',
+                  fontWeight: 'bold',
+                  justifyContent: 'flex-start',
+                  p: 0
+                }}
+                endIcon={getSortIcon('release_date')}
+              >
+                출시일
+              </Button>
+            </TableCell>
+            <TableCell width="100" align="center">
+              <Typography variant="subtitle2" fontWeight="bold">
+                카드 수
+              </Typography>
+            </TableCell>
+            <TableCell width="100" align="center">
+              <Typography variant="subtitle2" fontWeight="bold">
+                상태
+              </Typography>
+            </TableCell>
+            <TableCell width="150" align="center">
+              <Typography variant="subtitle2" fontWeight="bold">
+                액션
+              </Typography>
+            </TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {sets.map((set, index) => (
+            <TableRow
+              key={set.id}
+              hover
+              sx={{ 
+                cursor: 'pointer',
+                '&:hover': {
+                  backgroundColor: 'action.hover',
+                },
+                '&:last-child td': {
+                  borderBottom: 0,
+                }
+              }}
+              onClick={() => onSetClick(set.set_code)}
+            >
+              <TableCell>
+                <Typography variant="body2" fontWeight="medium" color="primary">
+                  {set.set_code}
+                </Typography>
+              </TableCell>
+              <TableCell>
+                <Box>
+                  <Typography variant="body1" fontWeight="medium">
                     {set.name_kr || set.name}
                   </Typography>
                   {set.name_kr && set.name && (
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    <Typography variant="body2" color="text.secondary">
                       {set.name}
                     </Typography>
                   )}
-                  
-                  <Stack direction="row" justifyContent="space-between" alignItems="center">
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                      <CalendarIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                      <Typography variant="caption" color="text.secondary">
-                        {utils.formatDate(set.release_date)}
-                      </Typography>
-                    </Box>
-                  </Stack>
-                </CardContent>
-              </CardActionArea>
-              
-              <Divider />
-              
-              <CardActions>
-                <Button 
-                  size="small" 
-                  color="primary"
+                </Box>
+              </TableCell>
+              <TableCell>
+                <Typography variant="body2">
+                  {utils.formatDate(set.release_date)}
+                </Typography>
+              </TableCell>
+              <TableCell align="center">
+                <Typography variant="body2">
+                  {set.total_cards ? `${set.total_cards}장` : '-'}
+                </Typography>
+              </TableCell>
+              <TableCell align="center">
+                {utils.isNew(set.release_date) && (
+                  <Chip
+                    label="NEW"
+                    size="small"
+                    color="error"
+                    sx={{ fontSize: '0.7rem', height: 20 }}
+                  />
+                )}
+              </TableCell>
+              <TableCell align="center">
+                <Button
+                  size="small"
+                  variant="outlined"
                   onClick={(e) => {
                     e.stopPropagation();
                     onSetClick(set.set_code);
@@ -268,158 +316,67 @@ const GridView = ({ sets, onSetClick }) => {
                 >
                   카드 목록
                 </Button>
-                <Button size="small" color="secondary">
-                  상세 정보
-                </Button>
-              </CardActions>
-            </StyledCard>
-          </Grow>
-        </Grid>
-      ))}
-    </Grid>
-  );
-};
-
-// 리스트 뷰 컴포넌트
-const ListView = ({ sets, onSetClick }) => {
-  return (
-    <Paper>
-      <List>
-        {sets.map((set, index) => (
-          <Fade in={true} timeout={300 + index * 50} key={set.id}>
-            <Box>
-              <ListItem
-                sx={{
-                  py: 2,
-                  cursor: 'pointer',
-                  '&:hover': {
-                    bgcolor: 'action.hover',
-                  },
-                }}
-                onClick={() => onSetClick(set.set_code)}
-              >
-                <ListItemAvatar>
-                  <Avatar
-                    variant="rounded"
-                    src={set.image_url || `https://via.placeholder.com/80x80/1976d2/ffffff?text=${encodeURIComponent((set.name_kr || set.name).substring(0, 2))}`}
-                    sx={{ width: 80, height: 80, mr: 2 }}
-                  />
-                </ListItemAvatar>
-                
-                <ListItemText
-                  primary={
-                    <Stack direction="row" alignItems="center" spacing={1}>
-                      <Typography variant="caption" color="text.secondary">
-                        {set.set_code}
-                      </Typography>
-                      {set.is_new && (
-                        <Chip label="NEW" size="small" color="error" />
-                      )}
-                    </Stack>
-                  }
-                  secondary={
-                    <>
-                      <Typography variant="h6" component="div" sx={{ fontWeight: 'bold' }}>
-                        {set.name_kr || set.name}
-                      </Typography>
-                      {set.name_kr && set.name && (
-                        <Typography variant="body2" color="text.secondary">
-                          {set.name}
-                        </Typography>
-                      )}
-                      <Stack direction="row" spacing={2} sx={{ mt: 1 }}>
-                        <Typography variant="body2" color="text.secondary">
-                          📅 {utils.formatDate(set.release_date)}
-                        </Typography>
-                        {set.game_name && (
-                          <Typography variant="body2" color="text.secondary">
-                            게임: {set.game_name}
-                          </Typography>
-                        )}
-                      </Stack>
-                    </>
-                  }
-                />
-                
-                <Stack direction="row" spacing={1}>
-                  <Button 
-                    variant="outlined" 
-                    size="small"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onSetClick(set.set_code);
-                    }}
-                  >
-                    카드 목록
-                  </Button>
-                  <Button variant="contained" size="small">
-                    상세 정보
-                  </Button>
-                </Stack>
-              </ListItem>
-              {index < sets.length - 1 && <Divider />}
-            </Box>
-          </Fade>
-        ))}
-      </List>
-    </Paper>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      
+      {sets.length === 0 && (
+        <Box sx={{ p: 4, textAlign: 'center' }}>
+          <Typography variant="body1" color="text.secondary">
+            표시할 카드 세트가 없습니다.
+          </Typography>
+        </Box>
+      )}
+    </TableContainer>
   );
 };
 
 // 로딩 스켈레톤
-const LoadingSkeleton = ({ viewMode }) => {
-  if (viewMode === 'grid') {
-    return (
-      <Grid container spacing={3}>
-        {[...Array(8)].map((_, index) => (
-          <Grid item xs={12} sm={6} md={4} lg={3} key={index}>
-            <Card>
-              <Skeleton variant="rectangular" height={240} />
-              <CardContent>
-                <Skeleton variant="text" width="40%" />
+const LoadingSkeleton = () => {
+  return (
+    <TableContainer component={Paper}>
+      <Table>
+        <TableHead>
+          <TableRow sx={{ backgroundColor: 'grey.50' }}>
+            <TableCell width="120">
+              <Skeleton variant="text" width="80%" />
+            </TableCell>
+            <TableCell>
+              <Skeleton variant="text" width="60%" />
+            </TableCell>
+            <TableCell width="120">
+              <Skeleton variant="text" width="70%" />
+            </TableCell>
+            <TableCell width="100">
+              <Skeleton variant="text" width="60%" />
+            </TableCell>
+            <TableCell width="100">
+              <Skeleton variant="text" width="50%" />
+            </TableCell>
+            <TableCell width="150">
+              <Skeleton variant="text" width="70%" />
+            </TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {[...Array(8)].map((_, index) => (
+            <TableRow key={index}>
+              <TableCell><Skeleton variant="text" /></TableCell>
+              <TableCell>
                 <Skeleton variant="text" width="80%" />
                 <Skeleton variant="text" width="60%" />
-                <Stack direction="row" justifyContent="space-between" sx={{ mt: 2 }}>
-                  <Skeleton variant="text" width="30%" />
-                  <Skeleton variant="rounded" width={60} height={24} />
-                </Stack>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
-    );
-  }
-
-  return (
-    <Paper>
-      <List>
-        {[...Array(5)].map((_, index) => (
-          <Box key={index}>
-            <ListItem sx={{ py: 2 }}>
-              <ListItemAvatar>
-                <Skeleton variant="rounded" width={80} height={80} sx={{ mr: 2 }} />
-              </ListItemAvatar>
-              <ListItemText
-                primary={<Skeleton variant="text" width="20%" />}
-                secondary={
-                  <>
-                    <Skeleton variant="text" width="40%" />
-                    <Skeleton variant="text" width="30%" />
-                    <Skeleton variant="text" width="50%" />
-                  </>
-                }
-              />
-              <Stack direction="row" spacing={1}>
-                <Skeleton variant="rounded" width={80} height={32} />
-                <Skeleton variant="rounded" width={80} height={32} />
-              </Stack>
-            </ListItem>
-            {index < 4 && <Divider />}
-          </Box>
-        ))}
-      </List>
-    </Paper>
+              </TableCell>
+              <TableCell><Skeleton variant="text" /></TableCell>
+              <TableCell><Skeleton variant="text" /></TableCell>
+              <TableCell><Skeleton variant="rounded" width={40} height={20} /></TableCell>
+              <TableCell><Skeleton variant="rounded" width={80} height={32} /></TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TableContainer>
   );
 };
 
@@ -458,7 +415,12 @@ const TCGCardSetsManager = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   
-  // 상태 관리
+  // 페이지 상태 관리
+  const [currentView, setCurrentView] = useState('sets'); // 'sets', 'cards', 'detail'
+  const [selectedSetCode, setSelectedSetCode] = useState(null);
+  const [selectedCardNumber, setSelectedCardNumber] = useState(null);
+  
+  // 기존 상태들
   const [games, setGames] = useState([]);
   const [selectedGame, setSelectedGame] = useState('');
   const [cardSets, setCardSets] = useState([]);
@@ -467,14 +429,9 @@ const TCGCardSetsManager = () => {
   const [cardSetsLoading, setCardSetsLoading] = useState(false);
   const [statsLoading, setStatsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [viewMode, setViewMode] = useState('grid');
   const [sortBy, setSortBy] = useState('release_date');
   const [sortOrder, setSortOrder] = useState('desc');
   const [error, setError] = useState('');
-  const [selectedCardNumber, setSelectedCardNumber] = useState(null);
-  
-  // 카드 세트 상세 페이지 관련 상태
-  const [selectedSetCode, setSelectedSetCode] = useState(null);
 
   // 초기 데이터 로딩
   useEffect(() => {
@@ -483,11 +440,11 @@ const TCGCardSetsManager = () => {
 
   // 게임 변경시 카드 세트 로딩
   useEffect(() => {
-    if (selectedGame && !selectedSetCode) {
+    if (selectedGame && currentView === 'sets') {
       loadCardSets(selectedGame);
       loadGameStats(selectedGame);
     }
-  }, [selectedGame, selectedSetCode]);
+  }, [selectedGame, currentView]);
 
   // API 호출 함수들
   const loadGames = async () => {
@@ -550,7 +507,10 @@ const TCGCardSetsManager = () => {
   const handleGameChange = (event, newGameSlug) => {
     if (newGameSlug !== null) {
       setSelectedGame(newGameSlug);
+      // 게임 변경시 카드 세트 목록으로 돌아가기
+      setCurrentView('sets');
       setSelectedSetCode(null);
+      setSelectedCardNumber(null);
       setSearchTerm('');
     }
   };
@@ -571,20 +531,28 @@ const TCGCardSetsManager = () => {
     }
   };
 
+  // 네비게이션 핸들러들
   const handleSetClick = (setCode) => {
     setSelectedSetCode(setCode);
+    setCurrentView('cards');
   };
 
-  const handleCardClick = (cardNumber) => {
+  const handleCardClick = (cardNumber, setCode) => {
     setSelectedCardNumber(cardNumber);
-  };
-
-  const handleBackFromCard = () => {
-    setSelectedCardNumber(null);
+    setSelectedSetCode(setCode); // 카드 상세에서 setCode도 필요
+    setCurrentView('detail');
   };
 
   const handleBackToSets = () => {
+    setCurrentView('sets');
     setSelectedSetCode(null);
+    setSelectedCardNumber(null);
+  };
+
+  const handleBackToCards = () => {
+    setCurrentView('cards');
+    setSelectedCardNumber(null);
+    // selectedSetCode는 유지
   };
 
   // 필터링 및 정렬
@@ -600,6 +568,8 @@ const TCGCardSetsManager = () => {
         comparison = new Date(a.release_date || '1900-01-01') - new Date(b.release_date || '1900-01-01');
       } else if (sortBy === 'name') {
         comparison = (a.name_kr || a.name).localeCompare(b.name_kr || b.name);
+      } else if (sortBy === 'set_code') {
+        comparison = a.set_code.localeCompare(b.set_code);
       }
       return sortOrder === 'asc' ? comparison : -comparison;
     });
@@ -611,13 +581,23 @@ const TCGCardSetsManager = () => {
   const currentGame = games.find(game => (game.slug || game.id) === selectedGame);
   const currentGameTheme = utils.getGameTheme(selectedGame);
 
-  // 카드 세트 상세 페이지 렌더링
-  if (selectedSetCode) {
+  // 렌더링 분기
+  if (currentView === 'detail') {
+    return (
+      <CardDetailPage 
+        cardNumber={selectedCardNumber}
+        setCode={selectedSetCode}
+        onBack={handleBackToCards}
+      />
+    );
+  }
+
+  if (currentView === 'cards') {
     return (
       <CardSetDetail 
         setCode={selectedSetCode} 
         onBack={handleBackToSets}
-        gameInfo={currentGame}
+        onCardClick={handleCardClick}
       />
     );
   }
@@ -634,6 +614,7 @@ const TCGCardSetsManager = () => {
     );
   }
 
+  // 카드 세트 목록 뷰 (기본 뷰)
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'grey.50' }}>
       {/* 에러 알림 */}
@@ -681,12 +662,6 @@ const TCGCardSetsManager = () => {
 
           <IconButton color="inherit" onClick={handleRefresh} disabled={cardSetsLoading}>
             <RefreshIcon />
-          </IconButton>
-
-          <IconButton color="inherit">
-            <Badge badgeContent={3} color="error">
-              <ShoppingCartIcon />
-            </Badge>
           </IconButton>
         </Toolbar>
       </AppBar>
@@ -749,10 +724,10 @@ const TCGCardSetsManager = () => {
           </GameHeaderBox>
         )}
 
-        {/* 검색 및 필터 바 */}
+        {/* 검색 바 */}
         <Paper sx={{ p: 2, mb: 3 }}>
           <Grid container spacing={2} alignItems="center">
-            <Grid item xs={12} md={5}>
+            <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
                 variant="outlined"
@@ -770,60 +745,33 @@ const TCGCardSetsManager = () => {
               />
             </Grid>
             
-            <Grid item xs={12} md={7}>
-              <Stack direction="row" spacing={1} justifyContent="flex-end" flexWrap="wrap">
-                <ToggleButtonGroup
-                  value={sortBy}
-                  exclusive
-                  onChange={(e, value) => value && handleSortChange(value)}
-                  size="small"
-                >
-                  <ToggleButton value="release_date">
-                    <CalendarIcon sx={{ mr: 0.5 }} />
-                    출시일
-                    {sortBy === 'release_date' && (
-                      sortOrder === 'desc' ? <ArrowDownIcon fontSize="small" /> : <ArrowUpIcon fontSize="small" />
-                    )}
-                  </ToggleButton>
-                  <ToggleButton value="name">
-                    이름순
-                    {sortBy === 'name' && (
-                      sortOrder === 'desc' ? <ArrowDownIcon fontSize="small" /> : <ArrowUpIcon fontSize="small" />
-                    )}
-                  </ToggleButton>
-                </ToggleButtonGroup>
-                
-                <ToggleButtonGroup
-                  value={viewMode}
-                  exclusive
-                  onChange={(e, value) => value && setViewMode(value)}
-                  size="small"
-                >
-                  <ToggleButton value="grid">
-                    <ViewModuleIcon />
-                  </ToggleButton>
-                  <ToggleButton value="list">
-                    <ViewListIcon />
-                  </ToggleButton>
-                </ToggleButtonGroup>
-              </Stack>
+            <Grid item xs={12} md={6}>
+              <Box sx={{ textAlign: 'right' }}>
+                <Typography variant="body2" color="text.secondary">
+                  총 {filteredAndSortedSets.length}개의 세트
+                </Typography>
+              </Box>
             </Grid>
           </Grid>
         </Paper>
 
-        {/* 카드 세트 목록 */}
+        {/* 카드 세트 목록 (게시판 스타일) */}
         {cardSetsLoading ? (
-          <LoadingSkeleton viewMode={viewMode} />
+          <LoadingSkeleton />
         ) : filteredAndSortedSets.length === 0 ? (
           <ErrorDisplay 
             error={error} 
             onRetry={error ? handleRefresh : null} 
             searchTerm={searchTerm} 
           />
-        ) : viewMode === 'grid' ? (
-          <GridView sets={filteredAndSortedSets} onSetClick={handleSetClick} />
         ) : (
-          <ListView sets={filteredAndSortedSets} onSetClick={handleSetClick} />
+          <BoardView 
+            sets={filteredAndSortedSets} 
+            onSetClick={handleSetClick}
+            sortBy={sortBy}
+            sortOrder={sortOrder}
+            onSortChange={handleSortChange}
+          />
         )}
       </Container>
     </Box>

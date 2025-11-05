@@ -207,8 +207,12 @@ const downloadModifiedExcel = async (originalWorkbook, modifiedData, originalFil
       productName: product.productName,
       price: Number(product.price) || 0,
       stock: Number(product.stock) || 0,
-      excelRow: product.originalRowIndex + 1 // 1-based row number for Excel
+      excelRow: product.originalRowIndex + 1,
+      filterInfo: product.filterInfo || "",           // ⭐ 추가
+      validCount: product.validItemsCount || 0,       // ⭐ 추가
+      searchKeyword: product.searchKeyword || ""      // ⭐ 추가
     }));
+
     
     console.log('백엔드로 전송할 수정 데이터:', modifiedItems);
     
@@ -247,15 +251,15 @@ const downloadModifiedExcel = async (originalWorkbook, modifiedData, originalFil
     
     let response;
     try {
-      response = await fetch('http://127.0.0.1:8000/api/excel/update/', {
+        response = await fetch('http://127.0.0.1:8000/api/download-excel/', {
         method: 'POST',
         body: formData,
         headers: {
-          // Content-Type은 FormData 사용시 자동 설정되므로 명시하지 않음
-          'X-CSRFToken': getCsrfToken(), // CSRF 토큰이 필요한 경우
+          'X-CSRFToken': getCsrfToken(),
         },
         signal: controller.signal
       });
+
       
       clearTimeout(timeoutId);
     } catch (error) {
@@ -1251,10 +1255,13 @@ export default function MinimumPriceAdjust() {
               
               return {
                 ...product,
-                price: newPrice,                    // 새로운 최저가
-                originalPrice: originalPrice,      // 기존 가격 보관
-                priceChange: priceChange.change,   // 변경 정보 (예: "-18000원")
-                isModified: true                   // 수정됨으로 표시
+                price: newPrice,
+                originalPrice: originalPrice,
+                priceChange: priceChange.change,
+                filterInfo: priceChange.filter_info,              // ⭐ 추가
+                validItemsCount: priceChange.valid_items_count || 0,  // ⭐ 추가
+                searchKeyword: priceChange.search_keyword,        // ⭐ 추가
+                isModified: true
               };
             }
             
@@ -1284,44 +1291,43 @@ export default function MinimumPriceAdjust() {
     }
   }, [originalFile, file, data]);
 
-  /**
-   * 네이버 최저가 검색 API 호출
+    /**
+   * 네이버 최저가 검색 API 호출 (수정됨)
    */
   const callLowestPriceAPI = useCallback(async (originalFile, originalFileName) => {
     try {
       console.log('=== 최저가 검색 API 호출 시작 ===');
       
-      if (!originalFile) {
-        console.error('원본 파일이 없습니다.');
-        return { success: false };
+      if (!data || data.length === 0) {
+        console.error('상품 데이터가 없습니다.');
+        return { success: false, error: '상품 데이터가 없습니다.' };
       }
       
-      console.log('원본 파일 정보:', {
-        name: originalFile.name,
-        size: originalFile.size,
-        type: originalFile.type,
-        lastModified: new Date(originalFile.lastModified)
-      });
+      console.log(`대상 상품 수: ${data.length}개`);
       
-      // FormData 생성 (기존 코드와 동일한 방식)
-      const formData = new FormData();
-      formData.append('excel_file', originalFile);
+      // 상품 데이터를 API 요청 형식으로 변환
+      const items = data.map(product => ({
+        productName: product.productName,
+        currentPrice: Number(product.price) || 0
+      }));
       
-      console.log('FormData 준비 완료 - 최저가 검색용');
-      console.log('원본 파일 크기:', originalFile.size, 'bytes');
+      console.log('API 전송 데이터:', items.slice(0, 3), '...(총', items.length, '개)');
       
-      // Django API 호출 (기존 코드와 동일한 방식)
-      const response = await fetch('http://127.0.0.1:8000/api/upload-excel/', {
+      // Django API 호출 - search-prices 엔드포인트 사용 (변경됨!)
+      const response = await fetch('http://127.0.0.1:8000/api/search-prices/', {
         method: 'POST',
-        body: formData,
         headers: {
+          'Content-Type': 'application/json',
           'X-CSRFToken': getCsrfToken(),
-        }
+        },
+        body: JSON.stringify({ items })
       });
       
       console.log('서버 응답 상태:', response.status);
       
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('서버 에러 응답:', errorText);
         throw new Error(`서버 에러: ${response.status}`);
       }
       
@@ -1329,21 +1335,26 @@ export default function MinimumPriceAdjust() {
       const result = await response.json();
       console.log('API 응답 결과:', result);
       
-      // Django에서 보내주는 데이터 구조 확인
-      if (result.price_changes && Array.isArray(result.price_changes)) {
-        console.log(`${result.price_changes.length}개 상품의 가격 정보를 받았습니다.`);
+      // Django에서 보내주는 데이터 구조 확인 (변경됨!)
+      if (result.results && Array.isArray(result.results)) {
+        console.log(`${result.results.length}개 상품의 가격 정보를 받았습니다.`);
+        
+        // 응답 데이터를 프론트엔드 형식으로 변환
+        const priceChanges = result.results.map(item => ({
+          product_name: item.productName,
+          original_price: item.currentPrice,
+          new_price: item.newPrice,
+          change: item.priceDiff > 0 ? `+${item.priceDiff}원` : `${item.priceDiff}원`,
+          card_type: item.cardType,
+          filter_info: item.filterInfo,
+          search_keyword: item.searchKeyword,
+          valid_items_count: item.validItemsCount  // ⭐ 추가
+        }));
+        
         return { 
           success: true, 
-          priceChanges: result.price_changes,
-          message: result.message 
-        };
-      } else if (result.sample_data && Array.isArray(result.sample_data)) {
-        // 샘플 데이터 형태로 온 경우
-        console.log(`${result.sample_data.length}개 상품의 가격 정보를 받았습니다.`);
-        return { 
-          success: true, 
-          priceChanges: result.sample_data,
-          message: result.message 
+          priceChanges: priceChanges,
+          message: `${result.totalProcessed}개 상품 처리 완료`
         };
       } else {
         console.warn('예상과 다른 응답 형식:', result);
@@ -1356,7 +1367,7 @@ export default function MinimumPriceAdjust() {
       console.error('Stack trace:', error.stack);
       return { success: false, error: error.message };
     }
-  }, []);
+  }, [data]); // 의존성 배열에 data 추가!
 
   /**
    * 상품 데이터 업데이트
