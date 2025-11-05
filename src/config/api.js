@@ -73,4 +73,11 @@ class ApiClient {
   }
 }
 
+// 여러 환경 변수 관리
+export const config = {
+  apiBaseUrl: process.env.REACT_APP_API_BASE_URL,
+  apiTimeout: process.env.REACT_APP_API_TIMEOUT || 5000,
+  environment: process.env.NODE_ENV,
+};
+
 export const apiClient = new ApiClient();

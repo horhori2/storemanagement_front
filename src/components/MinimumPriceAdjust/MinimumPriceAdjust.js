@@ -41,6 +41,7 @@ import {
   Sort
 } from '@mui/icons-material';
 import * as XLSX from 'xlsx';
+import { API_BASE_URL } from './config';
 
 // ===============================
 // 상수 및 유틸리티 함수
@@ -65,7 +66,7 @@ const EXCEL_CONFIG = {
 };
 
 // API 설정
-const API_BASE_URL = 'http://127.0.0.1:8000/api';
+// const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 const PROGRESS_POLL_INTERVAL = 2000; // 2초마다 진행 상황 확인
 
 /**
