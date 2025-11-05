@@ -41,7 +41,7 @@ import {
   Sort
 } from '@mui/icons-material';
 import * as XLSX from 'xlsx';
-import { API_BASE_URL } from './config';
+import { API_BASE_URL } from '../../config/api';
 
 // ===============================
 // 상수 및 유틸리티 함수
