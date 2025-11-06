@@ -1315,7 +1315,7 @@ export default function MinimumPriceAdjust() {
       console.log('API 전송 데이터:', items.slice(0, 3), '...(총', items.length, '개)');
       
       // Django API 호출 - search-prices 엔드포인트 사용 (변경됨!)
-      const response = await fetch(`${API_BASE_URL}/download-excel/search-prices/`, {
+      const response = await fetch(`${API_BASE_URL}/search-prices/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
