@@ -1,4 +1,6 @@
 // src/config/api.js
+export const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000/api';
+
 export const API_CONFIG = {
   BASE_URL: process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000/api',
   TIMEOUT: 10000,
@@ -72,5 +74,12 @@ class ApiClient {
     return this.request(endpoint, { method: 'DELETE' });
   }
 }
+
+// 여러 환경 변수 관리
+export const config = {
+  apiBaseUrl: process.env.REACT_APP_API_BASE_URL,
+  apiTimeout: process.env.REACT_APP_API_TIMEOUT || 5000,
+  environment: process.env.NODE_ENV,
+};
 
 export const apiClient = new ApiClient();
