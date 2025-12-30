@@ -1035,7 +1035,7 @@ const ProductGrid = ({ data, onProductUpdate, onDownloadExcel, onSetAllMinPrice,
             </Select>
           </FormControl>
           
-          {/* 모든 카드 최저가로 변경 버튼 */}
+          {/* 모든 카드 가격 TCG999 기준 -100원으로 변경 버튼 */}
           <Button
             variant="outlined"
             onClick={onSetAllMinPrice}
@@ -1055,7 +1055,7 @@ const ProductGrid = ({ data, onProductUpdate, onDownloadExcel, onSetAllMinPrice,
               }
             }}
           >
-            {downloadLoading ? '최저가 검색 중...' : '모든 카드 최저가로 변경'}
+            {downloadLoading ? '최저가 검색 중...' : '모든 카드 가격 TCG999 기준 -100원으로 변경'}
           </Button>
           
           {modifiedCount > 0 && (
@@ -1208,7 +1208,7 @@ export default function MinimumPriceAdjust() {
   }, [originalWorkbook, data, file, originalFile]);
 
   /**
-   * 모든 상품을 최저가로 변경 (네이버 API 사용)
+   * 모든 상품을 가격 TCG999 기준 -100원으로 변경(네이버 API 사용)
    */
   const handleSetAllMinPrice = useCallback(async () => {
     if (!originalFile) {
@@ -1271,7 +1271,7 @@ export default function MinimumPriceAdjust() {
           });
           
           const changedCount = updatedData.filter(p => p.isModified).length;
-          console.log(`${changedCount}개 상품의 가격이 최저가로 업데이트되었습니다`);
+          console.log(`${changedCount}개 상품의 가격이 TCG999 기준 -100원으로 변경되었습니다`);
           
           return updatedData;
         });
